@@ -152,15 +152,6 @@ function markLimitExceeded(session: TabUsageSession): TabUsageSession {
   }
 }
 
-function logLimitExceeded(session: TabUsageSession): void {
-  console.info('[FocusGuard] Site session limit exceeded', {
-    tabId: session.tabId,
-    hostname: session.hostname,
-    startedAt: session.startedAt,
-    limitExceededAt: session.limitExceededAt,
-  })
-}
-
 async function redirectToBlockedPage(session: TabUsageSession): Promise<void> {
   const tab = await getTab(session.tabId)
 
@@ -180,11 +171,6 @@ async function redirectToBlockedPage(session: TabUsageSession): Promise<void> {
     session.tabId,
     {
       url: chrome.runtime.getURL(`${BLOCKED_PAGE_PATH}?${params.toString()}`),
-    },
-    () => {
-      if (chrome.runtime.lastError) {
-        console.info('[FocusGuard] Block redirect skipped', chrome.runtime.lastError.message)
-      }
     },
   )
 }
@@ -287,7 +273,6 @@ async function handleTabUrl(tabId: number, url: string | undefined): Promise<voi
     const exceededSession = markLimitExceeded(session)
 
     await writeTabUsageSession(exceededSession)
-    logLimitExceeded(exceededSession)
     await redirectToBlockedPage(exceededSession)
     return
   }

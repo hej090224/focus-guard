@@ -33,8 +33,10 @@ export function BlockedApp() {
     <main className="blocked-shell">
       <section className="blocked-panel">
         <p className="eyebrow">FocusGuard</p>
-        <h1>{site} 접속이 차단되었습니다</h1>
-        <dl>
+        <h1>접속이 차단되었습니다</h1>
+        <p className="blocked-site">{site}</p>
+
+        <dl className="blocked-details">
           <div>
             <dt>차단 이유</dt>
             <dd>{BLOCKED_REASON}</dd>
@@ -44,6 +46,7 @@ export function BlockedApp() {
             <dd>{currentTime}</dd>
           </div>
         </dl>
+
         <blockquote>{message}</blockquote>
       </section>
     </main>
