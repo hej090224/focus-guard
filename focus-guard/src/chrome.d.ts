@@ -57,6 +57,9 @@ interface ChromeRuntimeApi {
   onInstalled: {
     addListener(callback: () => void): void
   }
+  onStartup: {
+    addListener(callback: () => void): void
+  }
 }
 
 interface ChromeStorageChange {
@@ -69,6 +72,9 @@ interface ChromeStorageApi {
   session: ChromeStorageArea
   onChanged: {
     addListener(
+      callback: (changes: Record<string, ChromeStorageChange>, areaName: 'local' | 'sync' | 'session' | 'managed') => void,
+    ): void
+    removeListener(
       callback: (changes: Record<string, ChromeStorageChange>, areaName: 'local' | 'sync' | 'session' | 'managed') => void,
     ): void
   }

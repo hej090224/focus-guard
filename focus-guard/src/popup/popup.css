@@ -26,6 +26,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .popup-shell {
   display: grid;
   gap: 12px;
@@ -192,6 +197,10 @@ h2 {
   background: #1f7a5a;
 }
 
+.site-form button:not(:disabled):hover {
+  background: #176447;
+}
+
 .session-list,
 .site-list {
   display: grid;
@@ -240,6 +249,21 @@ h2 {
   padding: 7px 9px;
   background: #9a443b;
   font-size: 12px;
+}
+
+.site-list button:hover {
+  background: #7f352e;
+}
+
+.form-message {
+  min-height: 18px;
+  color: #5d6b73;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.form-message-empty {
+  visibility: hidden;
 }
 
 .empty-state {

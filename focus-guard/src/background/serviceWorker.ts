@@ -45,6 +45,10 @@ function clearSessionAlarms(tabId: number): void {
   chrome.alarms.clear(getWarningAlarmName(tabId))
 }
 
+function consumeRuntimeError(): void {
+  void chrome.runtime.lastError
+}
+
 async function clearAllSessions(): Promise<void> {
   const sessions = await readAllTabUsageSessions()
 
@@ -172,6 +176,7 @@ async function redirectToBlockedPage(session: TabUsageSession): Promise<void> {
     {
       url: chrome.runtime.getURL(`${BLOCKED_PAGE_PATH}?${params.toString()}`),
     },
+    consumeRuntimeError,
   )
 }
 
@@ -199,12 +204,16 @@ async function showWarningNotification(tabId: number): Promise<void> {
   const notifiedSession = markWarningNotificationShown(session)
 
   await writeTabUsageSession(notifiedSession)
-  chrome.notifications.create(`focusGuardWarning:${tabId}:${session.startedAt}`, {
-    type: 'basic',
-    iconUrl: chrome.runtime.getURL('icon-128.png'),
-    title: 'FocusGuard',
-    message: `${session.hostname} 사용 가능 시간이 1분 남았습니다.`,
-  })
+  chrome.notifications.create(
+    `focusGuardWarning:${tabId}:${session.startedAt}`,
+    {
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icon-128.png'),
+      title: 'FocusGuard',
+      message: `${session.hostname} 사용 가능 시간이 1분 남았습니다.`,
+    },
+    consumeRuntimeError,
+  )
 }
 
 async function refreshOpenTabs(): Promise<void> {
@@ -251,7 +260,8 @@ async function handleTabUrl(tabId: number, url: string | undefined): Promise<voi
   const settings = await getSettings()
 
   if (!settings.focusModeEnabled) {
-    await clearAllSessions()
+    clearSessionAlarms(tabId)
+    await removeTabUsageSession(tabId)
     return
   }
 
@@ -282,7 +292,11 @@ async function handleTabUrl(tabId: number, url: string | undefined): Promise<voi
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  void getSettings()
+  void getSettings().then(() => refreshOpenTabs())
+})
+
+chrome.runtime.onStartup.addListener(() => {
+  void refreshOpenTabs()
 })
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -295,7 +309,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'loading' || changeInfo.status === 'complete' || changeInfo.url) {
-    void handleTabUrl(tabId, tab.url ?? changeInfo.url)
+    void handleTabUrl(tabId, changeInfo.url ?? tab.url)
   }
 })
 

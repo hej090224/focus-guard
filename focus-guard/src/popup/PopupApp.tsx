@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import type { FocusGuardSettings, TabUsageSession } from '../shared/types'
+import { normalizeHostname } from '../shared/url'
 import {
   addBlockedSite,
   DEFAULT_SETTINGS,
   getSettings,
   removeBlockedSite,
   setFocusModeEnabled,
+  SETTINGS_STORAGE_KEY,
 } from '../storage/settingsStorage'
 import { readAllTabUsageSessions } from '../storage/sessionStorage'
 
@@ -18,10 +20,17 @@ function formatRemainingTime(expiresAt: number, now: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
+function getVisibleSessions(sessions: TabUsageSession[], now: number): TabUsageSession[] {
+  return sessions
+    .filter((session) => !session.isLimitExceeded && session.expiresAt > now)
+    .sort((first, second) => first.hostname.localeCompare(second.hostname) || first.tabId - second.tabId)
+}
+
 export function PopupApp() {
   const [settings, setSettings] = useState<FocusGuardSettings>(DEFAULT_SETTINGS)
   const [activeSessions, setActiveSessions] = useState<TabUsageSession[]>([])
   const [siteInput, setSiteInput] = useState('')
+  const [formMessage, setFormMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [now, setNow] = useState(0)
 
@@ -41,6 +50,23 @@ export function PopupApp() {
   }, [])
 
   useEffect(() => {
+    function handleStorageChange(
+      changes: Record<string, ChromeStorageChange>,
+      areaName: 'local' | 'sync' | 'session' | 'managed',
+    ) {
+      if (areaName !== 'local' || !changes[SETTINGS_STORAGE_KEY]) {
+        return
+      }
+
+      void getSettings().then((storedSettings) => setSettings(storedSettings))
+    }
+
+    chrome.storage.onChanged.addListener(handleStorageChange)
+
+    return () => chrome.storage.onChanged.removeListener(handleStorageChange)
+  }, [])
+
+  useEffect(() => {
     let isMounted = true
 
     async function refreshSessions() {
@@ -57,18 +83,19 @@ export function PopupApp() {
 
       const sessions = await readAllTabUsageSessions()
 
-      if (!isMounted) {
-        return
+      if (isMounted) {
+        setActiveSessions(getVisibleSessions(sessions, currentTime))
       }
-
-      setActiveSessions(
-        sessions
-          .filter((session) => !session.isLimitExceeded && session.expiresAt > currentTime)
-          .sort((first, second) => first.hostname.localeCompare(second.hostname) || first.tabId - second.tabId),
-      )
     }
 
     void refreshSessions()
+
+    if (!settings.focusModeEnabled) {
+      return () => {
+        isMounted = false
+      }
+    }
+
     const intervalId = window.setInterval(() => {
       void refreshSessions()
     }, 1000)
@@ -84,6 +111,10 @@ export function PopupApp() {
     [settings.blockedSites.length],
   )
 
+  const normalizedInput = normalizeHostname(siteInput)
+  const isDuplicateSite = normalizedInput !== null && settings.blockedSites.includes(normalizedInput)
+  const canAddSite = normalizedInput !== null && !isDuplicateSite
+
   async function handleFocusModeChange(enabled: boolean) {
     const nextSettings = await setFocusModeEnabled(enabled)
 
@@ -97,14 +128,26 @@ export function PopupApp() {
   async function handleAddSite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const nextSettings = await addBlockedSite(siteInput)
+    if (normalizedInput === null) {
+      setFormMessage('유효한 도메인 또는 URL을 입력하세요.')
+      return
+    }
+
+    if (isDuplicateSite) {
+      setFormMessage('이미 등록된 사이트입니다.')
+      return
+    }
+
+    const nextSettings = await addBlockedSite(normalizedInput)
 
     setSettings(nextSettings)
     setSiteInput('')
+    setFormMessage(`${normalizedInput} 사이트를 추가했습니다.`)
   }
 
   async function handleRemoveSite(site: string) {
     setSettings(await removeBlockedSite(site))
+    setFormMessage(`${site} 사이트를 삭제했습니다.`)
   }
 
   return (
@@ -178,10 +221,20 @@ export function PopupApp() {
             value={siteInput}
             placeholder="example.com"
             aria-label="차단 사이트 추가"
-            onChange={(event) => setSiteInput(event.currentTarget.value)}
+            aria-describedby="site-form-message"
+            onChange={(event) => {
+              setSiteInput(event.currentTarget.value)
+              setFormMessage('')
+            }}
           />
-          <button type="submit">추가</button>
+          <button type="submit" disabled={!canAddSite}>
+            추가
+          </button>
         </form>
+
+        <p id="site-form-message" className={formMessage ? 'form-message' : 'form-message form-message-empty'}>
+          {formMessage || ' '}
+        </p>
 
         <ul className="site-list">
           {settings.blockedSites.map((site) => (
