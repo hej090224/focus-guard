@@ -109,10 +109,11 @@ export function PopupApp() {
 
   return (
     <main className="popup-shell">
-      <header className="popup-header">
+      <header className="popup-header card">
         <div>
           <p className="eyebrow">FocusGuard</p>
           <h1>집중 모드</h1>
+          <p className="header-copy">차단 사이트별 10분 사용을 관리합니다.</p>
         </div>
         <label className="switch">
           <input
@@ -127,38 +128,48 @@ export function PopupApp() {
         </label>
       </header>
 
-      <section className="status-panel">
-        <span>현재 상태</span>
-        <strong>{settings.focusModeEnabled ? '차단 감지 중' : '대기 중'}</strong>
+      <section className="status-card card">
+        <div>
+          <span className="label">현재 상태</span>
+          <strong className={settings.focusModeEnabled ? 'status-on' : 'status-off'}>
+            {settings.focusModeEnabled ? '차단 감지 중' : '대기 중'}
+          </strong>
+        </div>
         <small>{blockedSiteCountText}</small>
       </section>
 
-      {settings.focusModeEnabled && (
-        <section className="session-section">
-          <div className="section-title">
-            <h2>진행 중인 세션</h2>
-            <span>남은 시간</span>
-          </div>
-
-          {activeSessions.length > 0 ? (
-            <ul className="session-list">
-              {activeSessions.map((session) => (
-                <li key={`${session.tabId}:${session.startedAt}`}>
-                  <span>{session.hostname}</span>
-                  <strong>{formatRemainingTime(session.expiresAt, now)}</strong>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="empty-state">현재 사용 중인 차단 사이트가 없습니다.</p>
-          )}
-        </section>
-      )}
-
-      <section className="site-section">
+      <section className="card section-card">
         <div className="section-title">
-          <h2>차단 사이트</h2>
-          <span>사이트별 10분 허용</span>
+          <div>
+            <h2>남은 시간</h2>
+            <p>현재 세션이 진행 중인 차단 사이트</p>
+          </div>
+          <span>{activeSessions.length}개</span>
+        </div>
+
+        {settings.focusModeEnabled && activeSessions.length > 0 ? (
+          <ul className="session-list">
+            {activeSessions.map((session) => (
+              <li key={`${session.tabId}:${session.startedAt}`}>
+                <span>{session.hostname}</span>
+                <strong>{formatRemainingTime(session.expiresAt, now)}</strong>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="empty-state">
+            {settings.focusModeEnabled ? '진행 중인 세션이 없습니다.' : '집중 모드를 켜면 남은 시간이 표시됩니다.'}
+          </p>
+        )}
+      </section>
+
+      <section className="card section-card">
+        <div className="section-title">
+          <div>
+            <h2>차단 사이트</h2>
+            <p>사용 제한을 적용할 도메인</p>
+          </div>
+          <span>10분 허용</span>
         </div>
 
         <form className="site-form" onSubmit={handleAddSite}>
