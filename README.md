@@ -26,10 +26,7 @@
 
 ## 🚀 Usage
 
-1. Chrome Extensions 페이지 접속
-2. 개발자 모드 활성화
-3. `dist` 폴더 로드
-4. FocusGuard 사용
+* (배포 후 추가예정)
 
 ---
 
