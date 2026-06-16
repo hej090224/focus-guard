@@ -1,18 +1,25 @@
-import { SESSION_LIMIT_MS } from '../shared/constants'
+import { SESSION_LIMIT_MS, SESSION_WARNING_THRESHOLD_MS } from '../shared/constants'
 import type { TabUsageSession } from '../shared/types'
 import { getHostnameFromUrl, isBlockedHostname, shouldIgnoreUrl } from '../shared/url'
 import { getSettings, SETTINGS_STORAGE_KEY } from '../storage/settingsStorage'
+import {
+  clearTabUsageSessions,
+  readAllTabUsageSessions,
+  readTabUsageSession,
+  removeTabUsageSession,
+  writeTabUsageSession,
+} from '../storage/sessionStorage'
 
-const SESSION_KEY_PREFIX = 'focusGuardTabSession:'
 const ALARM_PREFIX = 'focusGuardSessionLimit:'
+const WARNING_ALARM_PREFIX = 'focusGuardSessionWarning:'
 const BLOCKED_PAGE_PATH = 'blocked.html'
-
-function getSessionKey(tabId: number): string {
-  return `${SESSION_KEY_PREFIX}${tabId}`
-}
 
 function getAlarmName(tabId: number): string {
   return `${ALARM_PREFIX}${tabId}`
+}
+
+function getWarningAlarmName(tabId: number): string {
+  return `${WARNING_ALARM_PREFIX}${tabId}`
 }
 
 function getTabIdFromAlarmName(alarmName: string): number | null {
@@ -24,71 +31,45 @@ function getTabIdFromAlarmName(alarmName: string): number | null {
   return Number.isInteger(tabId) ? tabId : null
 }
 
-function readSession(tabId: number): Promise<TabUsageSession | undefined> {
-  const key = getSessionKey(tabId)
+function getTabIdFromWarningAlarmName(alarmName: string): number | null {
+  if (!alarmName.startsWith(WARNING_ALARM_PREFIX)) {
+    return null
+  }
 
-  return new Promise((resolve) => {
-    chrome.storage.session.get(key, (items) => {
-      if (chrome.runtime.lastError) {
-        resolve(undefined)
-        return
-      }
-
-      resolve(items[key] as TabUsageSession | undefined)
-    })
-  })
+  const tabId = Number(alarmName.slice(WARNING_ALARM_PREFIX.length))
+  return Number.isInteger(tabId) ? tabId : null
 }
 
-function writeSession(session: TabUsageSession): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.storage.session.set({ [getSessionKey(session.tabId)]: session }, () => resolve())
-  })
-}
-
-function removeSession(tabId: number): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.storage.session.remove(getSessionKey(tabId), () => resolve())
-  })
-}
-
-function readAllSessions(): Promise<TabUsageSession[]> {
-  return new Promise((resolve) => {
-    chrome.storage.session.get(null, (items) => {
-      if (chrome.runtime.lastError) {
-        resolve([])
-        return
-      }
-
-      const sessions = Object.entries(items)
-        .filter(([key]) => key.startsWith(SESSION_KEY_PREFIX))
-        .map(([, value]) => value)
-        .filter((value): value is TabUsageSession => isTabUsageSession(value))
-
-      resolve(sessions)
-    })
-  })
+function clearSessionAlarms(tabId: number): void {
+  chrome.alarms.clear(getAlarmName(tabId))
+  chrome.alarms.clear(getWarningAlarmName(tabId))
 }
 
 async function clearAllSessions(): Promise<void> {
-  const sessions = await readAllSessions()
-  const sessionKeys = sessions.map((session) => getSessionKey(session.tabId))
+  const sessions = await readAllTabUsageSessions()
 
-  sessions.forEach((session) => chrome.alarms.clear(getAlarmName(session.tabId)))
+  sessions.forEach((session) => clearSessionAlarms(session.tabId))
+  await clearTabUsageSessions()
+}
 
-  if (sessionKeys.length === 0) {
+function scheduleSessionAlarms(session: TabUsageSession): void {
+  clearSessionAlarms(session.tabId)
+
+  chrome.alarms.create(getAlarmName(session.tabId), {
+    when: session.expiresAt,
+  })
+
+  if (session.warningNotificationShownAt) {
     return
   }
 
-  await new Promise<void>((resolve) => {
-    chrome.storage.session.remove(sessionKeys, () => resolve())
-  })
-}
+  const warningAt = session.expiresAt - SESSION_WARNING_THRESHOLD_MS
 
-function scheduleLimitAlarm(tabId: number, expiresAt: number): void {
-  chrome.alarms.clear(getAlarmName(tabId))
-  chrome.alarms.create(getAlarmName(tabId), {
-    when: expiresAt,
-  })
+  if (warningAt > Date.now()) {
+    chrome.alarms.create(getWarningAlarmName(session.tabId), {
+      when: warningAt,
+    })
+  }
 }
 
 function getTab(tabId: number): Promise<ChromeTab | undefined> {
@@ -136,22 +117,6 @@ function isBlockedPageUrl(url: string | undefined): boolean {
   }
 }
 
-function isTabUsageSession(value: unknown): value is TabUsageSession {
-  if (typeof value !== 'object' || value === null) {
-    return false
-  }
-
-  const session = value as Partial<TabUsageSession>
-
-  return (
-    typeof session.tabId === 'number' &&
-    typeof session.hostname === 'string' &&
-    typeof session.startedAt === 'number' &&
-    typeof session.expiresAt === 'number' &&
-    typeof session.isLimitExceeded === 'boolean'
-  )
-}
-
 function createSession(tabId: number, hostname: string): TabUsageSession {
   const startedAt = Date.now()
 
@@ -161,6 +126,17 @@ function createSession(tabId: number, hostname: string): TabUsageSession {
     startedAt,
     expiresAt: startedAt + SESSION_LIMIT_MS,
     isLimitExceeded: false,
+  }
+}
+
+function markWarningNotificationShown(session: TabUsageSession): TabUsageSession {
+  if (session.warningNotificationShownAt) {
+    return session
+  }
+
+  return {
+    ...session,
+    warningNotificationShownAt: Date.now(),
   }
 }
 
@@ -189,8 +165,8 @@ async function redirectToBlockedPage(session: TabUsageSession): Promise<void> {
   const tab = await getTab(session.tabId)
 
   if (!tab || isBlockedPageUrl(tab.url) || getHostnameFromUrl(tab.url) !== session.hostname) {
-    await removeSession(session.tabId)
-    chrome.alarms.clear(getAlarmName(session.tabId))
+    await removeTabUsageSession(session.tabId)
+    clearSessionAlarms(session.tabId)
     return
   }
 
@@ -198,8 +174,8 @@ async function redirectToBlockedPage(session: TabUsageSession): Promise<void> {
     site: session.hostname,
   })
 
-  await removeSession(session.tabId)
-  chrome.alarms.clear(getAlarmName(session.tabId))
+  await removeTabUsageSession(session.tabId)
+  clearSessionAlarms(session.tabId)
   chrome.tabs.update(
     session.tabId,
     {
@@ -211,6 +187,38 @@ async function redirectToBlockedPage(session: TabUsageSession): Promise<void> {
       }
     },
   )
+}
+
+async function showWarningNotification(tabId: number): Promise<void> {
+  const session = await readTabUsageSession(tabId)
+
+  if (!session || session.warningNotificationShownAt || session.isLimitExceeded) {
+    return
+  }
+
+  const settings = await getSettings()
+  const tab = await getTab(tabId)
+
+  if (
+    !settings.focusModeEnabled ||
+    !tab ||
+    getHostnameFromUrl(tab.url) !== session.hostname ||
+    Date.now() >= session.expiresAt
+  ) {
+    await removeTabUsageSession(tabId)
+    clearSessionAlarms(tabId)
+    return
+  }
+
+  const notifiedSession = markWarningNotificationShown(session)
+
+  await writeTabUsageSession(notifiedSession)
+  chrome.notifications.create(`focusGuardWarning:${tabId}:${session.startedAt}`, {
+    type: 'basic',
+    iconUrl: chrome.runtime.getURL('favicon.svg'),
+    title: 'FocusGuard',
+    message: `${session.hostname} 사용 가능 시간이 1분 남았습니다.`,
+  })
 }
 
 async function refreshOpenTabs(): Promise<void> {
@@ -241,16 +249,16 @@ async function handleSettingsChange(): Promise<void> {
 
 async function handleTabUrl(tabId: number, url: string | undefined): Promise<void> {
   if (isBlockedPageUrl(url) || shouldIgnoreUrl(url, getExtensionOrigin())) {
-    chrome.alarms.clear(getAlarmName(tabId))
-    await removeSession(tabId)
+    clearSessionAlarms(tabId)
+    await removeTabUsageSession(tabId)
     return
   }
 
   const hostname = getHostnameFromUrl(url)
 
   if (hostname === null) {
-    chrome.alarms.clear(getAlarmName(tabId))
-    await removeSession(tabId)
+    clearSessionAlarms(tabId)
+    await removeTabUsageSession(tabId)
     return
   }
 
@@ -262,12 +270,12 @@ async function handleTabUrl(tabId: number, url: string | undefined): Promise<voi
   }
 
   if (settings.blockedSites.length === 0 || !isBlockedHostname(hostname, settings.blockedSites)) {
-    chrome.alarms.clear(getAlarmName(tabId))
-    await removeSession(tabId)
+    clearSessionAlarms(tabId)
+    await removeTabUsageSession(tabId)
     return
   }
 
-  const previousSession = await readSession(tabId)
+  const previousSession = await readTabUsageSession(tabId)
   const session =
     previousSession?.hostname === hostname
       ? previousSession
@@ -278,14 +286,14 @@ async function handleTabUrl(tabId: number, url: string | undefined): Promise<voi
   if (elapsedMs >= SESSION_LIMIT_MS) {
     const exceededSession = markLimitExceeded(session)
 
-    await writeSession(exceededSession)
+    await writeTabUsageSession(exceededSession)
     logLimitExceeded(exceededSession)
     await redirectToBlockedPage(exceededSession)
     return
   }
 
-  await writeSession(session)
-  scheduleLimitAlarm(tabId, session.expiresAt)
+  await writeTabUsageSession(session)
+  scheduleSessionAlarms(session)
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -313,18 +321,23 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
 })
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  chrome.alarms.clear(getAlarmName(tabId))
-  void removeSession(tabId)
+  clearSessionAlarms(tabId)
+  void removeTabUsageSession(tabId)
 })
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   const tabId = getTabIdFromAlarmName(alarm.name)
 
-  if (tabId === null) {
+  if (tabId !== null) {
+    void getTab(tabId).then((tab) => {
+      void handleTabUrl(tabId, tab?.url)
+    })
     return
   }
 
-  void getTab(tabId).then((tab) => {
-    void handleTabUrl(tabId, tab?.url)
-  })
+  const warningTabId = getTabIdFromWarningAlarmName(alarm.name)
+
+  if (warningTabId !== null) {
+    void showWarningNotification(warningTabId)
+  }
 })

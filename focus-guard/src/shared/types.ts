@@ -9,5 +9,6 @@ export interface TabUsageSession {
   startedAt: number
   expiresAt: number
   isLimitExceeded: boolean
+  warningNotificationShownAt?: number
   limitExceededAt?: number
 }

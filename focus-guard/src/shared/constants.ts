@@ -8,6 +8,7 @@ export const DEFAULT_BLOCKED_SITES = [
 ] as const
 
 export const SESSION_LIMIT_MS = 10 * 60 * 1000
+export const SESSION_WARNING_THRESHOLD_MS = 60 * 1000
 
 export const MOTIVATION_MESSAGES = [
   '지금 10분이 오늘의 결과를 바꿉니다.',
