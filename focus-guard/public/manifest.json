@@ -11,7 +11,7 @@
     "service_worker": "assets/background.js",
     "type": "module"
   },
-  "permissions": ["alarms", "storage", "tabs"],
+  "permissions": ["alarms", "notifications", "storage", "tabs"],
   "host_permissions": ["http://*/*", "https://*/*"],
   "web_accessible_resources": [
     {

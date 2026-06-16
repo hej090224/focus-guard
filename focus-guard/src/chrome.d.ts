@@ -38,6 +38,17 @@ interface ChromeAlarmsApi {
   }
 }
 
+interface ChromeNotificationOptions {
+  type: 'basic'
+  iconUrl: string
+  title: string
+  message: string
+}
+
+interface ChromeNotificationsApi {
+  create(notificationId: string, options: ChromeNotificationOptions, callback?: (notificationId: string) => void): void
+}
+
 interface ChromeRuntimeApi {
   getURL(path: string): string
   lastError?: {
@@ -65,6 +76,7 @@ interface ChromeStorageApi {
 
 declare const chrome: {
   alarms: ChromeAlarmsApi
+  notifications: ChromeNotificationsApi
   runtime: ChromeRuntimeApi
   storage: ChromeStorageApi
   tabs: ChromeTabsApi

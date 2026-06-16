@@ -99,9 +99,14 @@ h2 {
   font-size: 20px;
 }
 
+.session-section,
 .site-section {
   display: grid;
   gap: 12px;
+}
+
+.session-section {
+  margin-bottom: 20px;
 }
 
 .section-title {
@@ -139,16 +144,21 @@ h2 {
   padding: 0 14px;
 }
 
+.session-list,
 .site-list {
   display: grid;
-  max-height: 260px;
   gap: 8px;
   margin: 0;
   padding: 0;
-  overflow: auto;
   list-style: none;
 }
 
+.site-list {
+  max-height: 260px;
+  overflow: auto;
+}
+
+.session-list li,
 .site-list li {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -160,8 +170,15 @@ h2 {
   background: #ffffff;
 }
 
+.session-list span,
 .site-list span {
   overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.session-list strong {
+  color: #26735b;
+  font-variant-numeric: tabular-nums;
   font-size: 14px;
 }
 
@@ -169,4 +186,13 @@ h2 {
   padding: 6px 10px;
   background: #8f3c34;
   font-size: 12px;
+}
+
+.empty-state {
+  padding: 12px;
+  border: 1px dashed #cfd8c9;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #69747a;
+  font-size: 13px;
 }
