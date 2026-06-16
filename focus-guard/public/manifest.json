@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "FocusGuard",
+  "description": "공부 중 불필요한 웹사이트 사용 시간을 제한합니다.",
+  "version": "0.1.0",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "FocusGuard"
+  },
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "permissions": ["alarms", "storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "web_accessible_resources": [
+    {
+      "resources": ["blocked.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
