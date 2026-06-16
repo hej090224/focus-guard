@@ -35,11 +35,17 @@ function normalizeSites(sites: string[] | undefined): string[] {
 
 export async function getSettings(): Promise<FocusGuardSettings> {
   const storedSettings = await readLocal<StoredSettings>(SETTINGS_KEY)
-
-  return {
+  const hasStoredBlockedSites = Array.isArray(storedSettings?.blockedSites)
+  const settings = {
     focusModeEnabled: storedSettings?.focusModeEnabled ?? DEFAULT_SETTINGS.focusModeEnabled,
     blockedSites: normalizeSites(storedSettings?.blockedSites),
   }
+
+  if (!storedSettings || !hasStoredBlockedSites) {
+    await saveSettings(settings)
+  }
+
+  return settings
 }
 
 export async function saveSettings(settings: FocusGuardSettings): Promise<void> {
