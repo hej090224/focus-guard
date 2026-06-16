@@ -36,3 +36,29 @@ export function getHostnameFromUrl(url: string | undefined): string | null {
 export function isBlockedHostname(hostname: string, blockedSites: string[]): boolean {
   return blockedSites.some((site) => hostname === site || hostname.endsWith(`.${site}`))
 }
+
+export function isLocalhost(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+}
+
+export function shouldIgnoreUrl(url: string | undefined, extensionOrigin: string): boolean {
+  if (!url) {
+    return true
+  }
+
+  try {
+    const parsedUrl = new URL(url)
+
+    if (parsedUrl.origin === extensionOrigin) {
+      return true
+    }
+
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return true
+    }
+
+    return isLocalhost(parsedUrl.hostname)
+  } catch {
+    return true
+  }
+}

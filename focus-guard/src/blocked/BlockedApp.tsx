@@ -1,23 +1,33 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MOTIVATION_MESSAGES } from '../shared/constants'
+import { getQueryParam } from '../shared/queryString'
+
+const BLOCKED_REASON = '집중 모드에서 10분 사용 시간이 초과되었습니다.'
 
 function getRandomMessage(): string {
   const index = Math.floor(Math.random() * MOTIVATION_MESSAGES.length)
   return MOTIVATION_MESSAGES[index]
 }
 
-function getQueryParam(name: string): string {
-  return new URLSearchParams(window.location.search).get(name) ?? ''
+function formatCurrentTime(date: Date): string {
+  return new Intl.DateTimeFormat('ko-KR', {
+    dateStyle: 'medium',
+    timeStyle: 'medium',
+  }).format(date)
 }
 
 export function BlockedApp() {
-  const site = getQueryParam('site') || '차단 사이트'
-  const reason = getQueryParam('reason') || '집중 모드에서 허용 시간이 초과되었습니다.'
-  const currentTime = new Intl.DateTimeFormat('ko-KR', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date())
+  const [currentTime, setCurrentTime] = useState(() => formatCurrentTime(new Date()))
+  const site = getQueryParam(window.location.search, 'site') ?? '차단 사이트'
   const message = useMemo(() => getRandomMessage(), [])
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setCurrentTime(formatCurrentTime(new Date()))
+    }, 1000)
+
+    return () => window.clearInterval(timerId)
+  }, [])
 
   return (
     <main className="blocked-shell">
@@ -27,7 +37,7 @@ export function BlockedApp() {
         <dl>
           <div>
             <dt>차단 이유</dt>
-            <dd>{reason}</dd>
+            <dd>{BLOCKED_REASON}</dd>
           </div>
           <div>
             <dt>현재 시간</dt>

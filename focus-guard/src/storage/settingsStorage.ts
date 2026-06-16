@@ -2,7 +2,7 @@ import { DEFAULT_BLOCKED_SITES } from '../shared/constants'
 import type { FocusGuardSettings } from '../shared/types'
 import { normalizeHostname } from '../shared/url'
 
-const SETTINGS_KEY = 'focusGuardSettings'
+export const SETTINGS_STORAGE_KEY = 'focusGuardSettings'
 
 export const DEFAULT_SETTINGS: FocusGuardSettings = {
   focusModeEnabled: false,
@@ -34,7 +34,7 @@ function normalizeSites(sites: string[] | undefined): string[] {
 }
 
 export async function getSettings(): Promise<FocusGuardSettings> {
-  const storedSettings = await readLocal<StoredSettings>(SETTINGS_KEY)
+  const storedSettings = await readLocal<StoredSettings>(SETTINGS_STORAGE_KEY)
   const hasStoredBlockedSites = Array.isArray(storedSettings?.blockedSites)
   const settings = {
     focusModeEnabled: storedSettings?.focusModeEnabled ?? DEFAULT_SETTINGS.focusModeEnabled,
@@ -49,7 +49,7 @@ export async function getSettings(): Promise<FocusGuardSettings> {
 }
 
 export async function saveSettings(settings: FocusGuardSettings): Promise<void> {
-  await writeLocal<FocusGuardSettings>(SETTINGS_KEY, {
+  await writeLocal<FocusGuardSettings>(SETTINGS_STORAGE_KEY, {
     focusModeEnabled: settings.focusModeEnabled,
     blockedSites: normalizeSites(settings.blockedSites),
   })
