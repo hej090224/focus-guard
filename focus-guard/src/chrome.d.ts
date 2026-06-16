@@ -15,6 +15,7 @@ interface ChromeAlarm {
 
 interface ChromeTabsApi {
   get(tabId: number, callback: (tab: ChromeTab) => void): void
+  query(queryInfo: Record<string, never>, callback: (tabs: ChromeTab[]) => void): void
   update(tabId: number, updateProperties: { url: string }, callback?: (tab?: ChromeTab) => void): void
   onActivated: {
     addListener(callback: (activeInfo: { tabId: number }) => void): void
@@ -31,7 +32,7 @@ interface ChromeTabsApi {
 
 interface ChromeAlarmsApi {
   create(name: string, alarmInfo: { when: number }): void
-  clear(name: string): void
+  clear(name: string, callback?: (wasCleared: boolean) => void): void
   onAlarm: {
     addListener(callback: (alarm: ChromeAlarm) => void): void
   }

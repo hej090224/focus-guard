@@ -104,6 +104,19 @@ function getTab(tabId: number): Promise<ChromeTab | undefined> {
   })
 }
 
+function getAllTabs(): Promise<ChromeTab[]> {
+  return new Promise((resolve) => {
+    chrome.tabs.query({}, (tabs) => {
+      if (chrome.runtime.lastError) {
+        resolve([])
+        return
+      }
+
+      resolve(tabs)
+    })
+  })
+}
+
 function getExtensionOrigin(): string {
   return new URL(chrome.runtime.getURL('')).origin
 }
@@ -173,6 +186,14 @@ function logLimitExceeded(session: TabUsageSession): void {
 }
 
 async function redirectToBlockedPage(session: TabUsageSession): Promise<void> {
+  const tab = await getTab(session.tabId)
+
+  if (!tab || isBlockedPageUrl(tab.url) || getHostnameFromUrl(tab.url) !== session.hostname) {
+    await removeSession(session.tabId)
+    chrome.alarms.clear(getAlarmName(session.tabId))
+    return
+  }
+
   const params = new URLSearchParams({
     site: session.hostname,
   })
@@ -190,6 +211,32 @@ async function redirectToBlockedPage(session: TabUsageSession): Promise<void> {
       }
     },
   )
+}
+
+async function refreshOpenTabs(): Promise<void> {
+  const tabs = await getAllTabs()
+
+  await Promise.all(
+    tabs.map(async (tab) => {
+      if (typeof tab.id !== 'number') {
+        return
+      }
+
+      await handleTabUrl(tab.id, tab.url)
+    }),
+  )
+}
+
+async function handleSettingsChange(): Promise<void> {
+  const settings = await getSettings()
+
+  await clearAllSessions()
+
+  if (!settings.focusModeEnabled || settings.blockedSites.length === 0) {
+    return
+  }
+
+  await refreshOpenTabs()
 }
 
 async function handleTabUrl(tabId: number, url: string | undefined): Promise<void> {
@@ -250,11 +297,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     return
   }
 
-  void getSettings().then((settings) => {
-    if (!settings.focusModeEnabled || settings.blockedSites.length === 0) {
-      void clearAllSessions()
-    }
-  })
+  void handleSettingsChange()
 })
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {

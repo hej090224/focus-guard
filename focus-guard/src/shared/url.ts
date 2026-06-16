@@ -38,7 +38,14 @@ export function isBlockedHostname(hostname: string, blockedSites: string[]): boo
 }
 
 export function isLocalhost(hostname: string): boolean {
-  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+  return (
+    hostname === 'localhost' ||
+    hostname.endsWith('.localhost') ||
+    hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    hostname === '::1' ||
+    hostname === '[::1]'
+  )
 }
 
 export function shouldIgnoreUrl(url: string | undefined, extensionOrigin: string): boolean {

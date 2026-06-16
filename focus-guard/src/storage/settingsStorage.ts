@@ -14,6 +14,11 @@ type StoredSettings = Partial<FocusGuardSettings>
 function readLocal<T>(key: string): Promise<T | undefined> {
   return new Promise((resolve) => {
     chrome.storage.local.get(key, (result) => {
+      if (chrome.runtime.lastError) {
+        resolve(undefined)
+        return
+      }
+
       resolve(result[key] as T | undefined)
     })
   })
@@ -21,7 +26,9 @@ function readLocal<T>(key: string): Promise<T | undefined> {
 
 function writeLocal<T>(key: string, value: T): Promise<void> {
   return new Promise((resolve) => {
-    chrome.storage.local.set({ [key]: value }, () => resolve())
+    chrome.storage.local.set({ [key]: value }, () => {
+      resolve()
+    })
   })
 }
 

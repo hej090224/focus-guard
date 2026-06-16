@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { MOTIVATION_MESSAGES } from '../shared/constants'
 import { getQueryParam } from '../shared/queryString'
 
-const BLOCKED_REASON = '집중 모드에서 10분 사용 시간이 초과되었습니다.'
+const BLOCKED_REASON = '집중 모드에서 10분 사용 시간을 초과했습니다.'
 
 function getRandomMessage(): string {
   const index = Math.floor(Math.random() * MOTIVATION_MESSAGES.length)
