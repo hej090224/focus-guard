@@ -15,7 +15,9 @@ interface ChromeAlarm {
 
 interface ChromeTabsApi {
   get(tabId: number, callback: (tab: ChromeTab) => void): void
-  update(tabId: number, updateProperties: { url: string }): void
+  onActivated: {
+    addListener(callback: (activeInfo: { tabId: number }) => void): void
+  }
   onUpdated: {
     addListener(
       callback: (tabId: number, changeInfo: { status?: string; url?: string }, tab: ChromeTab) => void,
@@ -35,7 +37,6 @@ interface ChromeAlarmsApi {
 }
 
 interface ChromeRuntimeApi {
-  getURL(path: string): string
   onInstalled: {
     addListener(callback: () => void): void
   }
