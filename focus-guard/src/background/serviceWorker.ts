@@ -1,4 +1,4 @@
-import { SESSION_LIMIT_MS, SESSION_WARNING_THRESHOLD_MS } from '../shared/constants'
+﻿import { SESSION_LIMIT_MS, SESSION_WARNING_THRESHOLD_MS } from '../shared/constants'
 import type { TabUsageSession } from '../shared/types'
 import { getHostnameFromUrl, isBlockedHostname, shouldIgnoreUrl } from '../shared/url'
 import { getSettings, SETTINGS_STORAGE_KEY } from '../storage/settingsStorage'
@@ -201,7 +201,7 @@ async function showWarningNotification(tabId: number): Promise<void> {
   await writeTabUsageSession(notifiedSession)
   chrome.notifications.create(`focusGuardWarning:${tabId}:${session.startedAt}`, {
     type: 'basic',
-    iconUrl: chrome.runtime.getURL('favicon.svg'),
+    iconUrl: chrome.runtime.getURL('icon-128.png'),
     title: 'FocusGuard',
     message: `${session.hostname} 사용 가능 시간이 1분 남았습니다.`,
   })
@@ -326,3 +326,6 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     void showWarningNotification(warningTabId)
   }
 })
+
+
+
