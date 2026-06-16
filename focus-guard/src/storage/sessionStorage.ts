@@ -6,6 +6,14 @@ export function getTabSessionKey(tabId: number): string {
   return `${SESSION_STORAGE_KEY_PREFIX}${tabId}`
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function isOptionalFiniteNumber(value: unknown): value is number | undefined {
+  return typeof value === 'undefined' || isFiniteNumber(value)
+}
+
 function isTabUsageSession(value: unknown): value is TabUsageSession {
   if (typeof value !== 'object' || value === null) {
     return false
@@ -14,13 +22,16 @@ function isTabUsageSession(value: unknown): value is TabUsageSession {
   const session = value as Partial<TabUsageSession>
 
   return (
-    typeof session.tabId === 'number' &&
+    isFiniteNumber(session.tabId) &&
+    Number.isInteger(session.tabId) &&
     typeof session.hostname === 'string' &&
-    typeof session.startedAt === 'number' &&
-    typeof session.expiresAt === 'number' &&
+    session.hostname.length > 0 &&
+    isFiniteNumber(session.startedAt) &&
+    isFiniteNumber(session.expiresAt) &&
+    session.expiresAt > session.startedAt &&
     typeof session.isLimitExceeded === 'boolean' &&
-    (typeof session.warningNotificationShownAt === 'undefined' ||
-      typeof session.warningNotificationShownAt === 'number')
+    isOptionalFiniteNumber(session.warningNotificationShownAt) &&
+    isOptionalFiniteNumber(session.limitExceededAt)
   )
 }
 

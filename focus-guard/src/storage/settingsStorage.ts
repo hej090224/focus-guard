@@ -32,23 +32,44 @@ function writeLocal<T>(key: string, value: T): Promise<void> {
   })
 }
 
-function normalizeSites(sites: string[] | undefined): string[] {
+function normalizeSites(sites: unknown): string[] {
+  if (!Array.isArray(sites)) {
+    return [...DEFAULT_SETTINGS.blockedSites]
+  }
+
   const normalizedSites = sites
-    ?.map((site) => normalizeHostname(site))
+    .filter((site): site is string => typeof site === 'string')
+    .map((site) => normalizeHostname(site))
     .filter((site): site is string => site !== null)
 
-  return Array.from(new Set(normalizedSites ?? DEFAULT_SETTINGS.blockedSites))
+  return Array.from(new Set(normalizedSites))
+}
+
+function normalizeStoredSettings(storedSettings: StoredSettings | undefined): FocusGuardSettings {
+  return {
+    focusModeEnabled:
+      typeof storedSettings?.focusModeEnabled === 'boolean'
+        ? storedSettings.focusModeEnabled
+        : DEFAULT_SETTINGS.focusModeEnabled,
+    blockedSites: normalizeSites(storedSettings?.blockedSites),
+  }
+}
+
+function shouldRepairSettings(storedSettings: StoredSettings | undefined, settings: FocusGuardSettings): boolean {
+  return (
+    !storedSettings ||
+    typeof storedSettings.focusModeEnabled !== 'boolean' ||
+    !Array.isArray(storedSettings.blockedSites) ||
+    storedSettings.blockedSites.length !== settings.blockedSites.length ||
+    storedSettings.blockedSites.some((site, index) => site !== settings.blockedSites[index])
+  )
 }
 
 export async function getSettings(): Promise<FocusGuardSettings> {
   const storedSettings = await readLocal<StoredSettings>(SETTINGS_STORAGE_KEY)
-  const hasStoredBlockedSites = Array.isArray(storedSettings?.blockedSites)
-  const settings = {
-    focusModeEnabled: storedSettings?.focusModeEnabled ?? DEFAULT_SETTINGS.focusModeEnabled,
-    blockedSites: normalizeSites(storedSettings?.blockedSites),
-  }
+  const settings = normalizeStoredSettings(storedSettings)
 
-  if (!storedSettings || !hasStoredBlockedSites) {
+  if (shouldRepairSettings(storedSettings, settings)) {
     await saveSettings(settings)
   }
 

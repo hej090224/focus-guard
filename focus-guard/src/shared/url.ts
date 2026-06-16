@@ -8,8 +8,18 @@ export function normalizeHostname(input: string): string | null {
   const candidate = trimmed.includes('://') ? trimmed : `https://${trimmed}`
 
   try {
-    const { hostname } = new URL(candidate)
-    return hostname.replace(/^www\./, '')
+    const { hostname, protocol } = new URL(candidate)
+    const normalizedHostname = hostname.replace(/^www\./, '').replace(/\.$/, '')
+
+    if (
+      normalizedHostname.length === 0 ||
+      (protocol !== 'http:' && protocol !== 'https:') ||
+      isLocalhost(normalizedHostname)
+    ) {
+      return null
+    }
+
+    return normalizedHostname
   } catch {
     return null
   }
@@ -27,7 +37,7 @@ export function getHostnameFromUrl(url: string | undefined): string | null {
       return null
     }
 
-    return hostname.replace(/^www\./, '')
+    return hostname.replace(/^www\./, '').replace(/\.$/, '')
   } catch {
     return null
   }
