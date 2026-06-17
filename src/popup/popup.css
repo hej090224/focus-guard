@@ -103,6 +103,20 @@ button:disabled {
   padding: 12px;
 }
 
+.brand-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand-mark {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  color: var(--color-primary);
+}
+
 .eyebrow,
 .label {
   margin: 0;

@@ -69,6 +69,13 @@ body {
   text-align: center;
 }
 
+.blocked-brand-mark {
+  justify-self: center;
+  width: 58px;
+  height: 58px;
+  color: var(--color-primary);
+}
+
 .eyebrow {
   margin: 0;
   color: var(--color-muted);

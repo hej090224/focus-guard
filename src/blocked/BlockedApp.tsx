@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { BrandMark } from '../shared/BrandMark'
 import { MOTIVATION_MESSAGES } from '../shared/constants'
 import { getQueryParam } from '../shared/queryString'
 import type { ThemeMode } from '../shared/types'
@@ -72,6 +73,7 @@ export function BlockedApp() {
   return (
     <main className="blocked-shell" data-theme={theme}>
       <section className="blocked-panel">
+        <BrandMark className="blocked-brand-mark" labelId="blocked-brand-title" />
         <p className="eyebrow">FocusGuard</p>
         <h1>접속이 차단되었습니다</h1>
         <p className="blocked-site">{site}</p>

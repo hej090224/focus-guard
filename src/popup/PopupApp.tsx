@@ -5,6 +5,7 @@ import {
   MAX_SESSION_LIMIT_MINUTES,
   MIN_SESSION_LIMIT_MINUTES,
 } from '../shared/constants'
+import { BrandMark } from '../shared/BrandMark'
 import type { FocusGuardSettings, TabUsageSession, ThemeMode } from '../shared/types'
 import { normalizeHostname } from '../shared/url'
 import {
@@ -205,10 +206,13 @@ export function PopupApp() {
   return (
     <main className="popup-shell" data-theme={settings.theme}>
       <header className="popup-header card">
-        <div>
-          <p className="eyebrow">FocusGuard</p>
-          <h1>집중 모드</h1>
-          <p className="header-copy">차단 사이트와 사용 시간을 관리합니다.</p>
+        <div className="brand-heading">
+          <BrandMark className="brand-mark" labelId="popup-brand-title" />
+          <div>
+            <p className="eyebrow">FocusGuard</p>
+            <h1>집중 모드</h1>
+            <p className="header-copy">차단 사이트와 사용 시간을 관리합니다.</p>
+          </div>
         </div>
         <label className="switch">
           <input
