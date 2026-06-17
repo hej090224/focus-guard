@@ -55,12 +55,20 @@ button:disabled {
 
 .popup-shell {
   display: grid;
-  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   gap: 8px;
   height: 600px;
   padding: 10px;
+  overflow: hidden;
   color: var(--color-text);
   background: var(--color-page);
+}
+
+.popup-shell[data-view='main'] {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
+.popup-shell[data-view='settings'] {
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .popup-shell[data-theme='dark'] {
@@ -95,12 +103,20 @@ button:disabled {
   box-shadow: var(--shadow-card);
 }
 
-.popup-header {
+.popup-header,
+.settings-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 12px;
+}
+
+.popup-header {
+  justify-content: space-between;
+}
+
+.settings-header {
+  justify-content: flex-start;
 }
 
 .brand-heading {
@@ -147,13 +163,27 @@ h2 {
   font-weight: 750;
 }
 
-.header-copy,
 .section-title p,
 .setting-row p {
   margin-top: 3px;
   color: var(--color-muted);
   font-size: 11px;
   line-height: 1.35;
+}
+
+.icon-button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 7px;
+  background: var(--color-surface-muted);
+  color: var(--color-body);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.icon-button:hover {
+  background: var(--color-surface-subtle);
 }
 
 .switch {
@@ -177,6 +207,26 @@ h2 {
   width: 15px;
   height: 15px;
   accent-color: var(--color-primary);
+}
+
+.focus-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 12px;
+}
+
+.focus-card div {
+  display: grid;
+  gap: 3px;
+}
+
+.focus-card strong {
+  color: var(--color-heading);
+  font-size: 18px;
+  font-weight: 780;
+  line-height: 1.15;
 }
 
 .summary-grid {
@@ -209,8 +259,8 @@ h2 {
 .section-card {
   display: grid;
   gap: 10px;
-  padding: 12px;
   min-width: 0;
+  padding: 12px;
 }
 
 .compact-section {
@@ -243,6 +293,15 @@ h2 {
   color: var(--color-muted);
   font-size: 11px;
   font-weight: 650;
+}
+
+.settings-content {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .theme-control {
@@ -329,6 +388,11 @@ h2 {
   gap: 8px;
 }
 
+.main-sessions {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .session-list,
 .site-list {
   display: grid;
@@ -336,6 +400,11 @@ h2 {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.session-list {
+  min-height: 0;
+  overflow: auto;
 }
 
 .session-list li {
@@ -369,14 +438,6 @@ h2 {
 
 .site-card {
   min-height: 0;
-  overflow: hidden;
-}
-
-.site-list {
-  min-height: 0;
-  max-height: 154px;
-  overflow: auto;
-  padding-right: 2px;
 }
 
 .site-list li {
