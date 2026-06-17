@@ -142,38 +142,43 @@ export function PopupApp() {
     setSettings(await setTheme(theme))
   }
 
-  async function handleDefaultLimitChange(value: string) {
-    const limitMinutes = parseLimitMinutes(value)
+  async function handleDefaultLimitBlur(input: HTMLInputElement) {
+    const limitMinutes = parseLimitMinutes(input.value)
 
     if (limitMinutes === null) {
+      input.value = String(settings.defaultLimitMinutes)
       setFormMessage(`제한 시간은 ${MIN_SESSION_LIMIT_MINUTES}~${MAX_SESSION_LIMIT_MINUTES}분 사이로 입력하세요.`)
       return
     }
 
     const nextSettings = await setDefaultLimitMinutes(limitMinutes)
 
+    input.value = String(nextSettings.defaultLimitMinutes)
     setSettings(nextSettings)
     setFormMessage(`기본 제한 시간을 ${limitMinutes}분으로 저장했습니다.`)
   }
 
-  async function handleSiteLimitChange(site: string, value: string) {
-    if (value.trim().length === 0) {
+  async function handleSiteLimitBlur(site: string, input: HTMLInputElement) {
+    if (input.value.trim().length === 0) {
       const nextSettings = await clearSiteLimitMinutes(site)
 
+      input.value = ''
       setSettings(nextSettings)
       setFormMessage(`${site}은 기본 제한 시간을 사용합니다.`)
       return
     }
 
-    const limitMinutes = parseLimitMinutes(value)
+    const limitMinutes = parseLimitMinutes(input.value)
 
     if (limitMinutes === null) {
+      input.value = settings.siteLimitMinutes[site] === undefined ? '' : String(settings.siteLimitMinutes[site])
       setFormMessage(`사이트별 제한 시간은 ${MIN_SESSION_LIMIT_MINUTES}~${MAX_SESSION_LIMIT_MINUTES}분 사이로 입력하세요.`)
       return
     }
 
     const nextSettings = await setSiteLimitMinutes(site, limitMinutes)
 
+    input.value = String(nextSettings.siteLimitMinutes[site] ?? limitMinutes)
     setSettings(nextSettings)
     setFormMessage(`${site} 제한 시간을 ${limitMinutes}분으로 저장했습니다.`)
   }
@@ -284,7 +289,7 @@ export function PopupApp() {
             defaultValue={settings.defaultLimitMinutes || DEFAULT_SESSION_LIMIT_MINUTES}
             aria-label="전체 기본 제한 시간"
             onBlur={(event) => {
-              void handleDefaultLimitChange(event.currentTarget.value)
+              void handleDefaultLimitBlur(event.currentTarget)
             }}
           />
         </label>
@@ -363,7 +368,7 @@ export function PopupApp() {
                     placeholder={String(settings.defaultLimitMinutes)}
                     aria-label={`${site} 제한 시간`}
                     onBlur={(event) => {
-                      void handleSiteLimitChange(site, event.currentTarget.value)
+                      void handleSiteLimitBlur(site, event.currentTarget)
                     }}
                   />
                   <span>분</span>

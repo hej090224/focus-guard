@@ -1,10 +1,7 @@
 export const DEFAULT_BLOCKED_SITES = [
   'youtube.com',
   'instagram.com',
-  'naver.com',
-  'x.com',
-  'facebook.com',
-  'tiktok.com',
+  'netflix.com',
 ] as const
 
 export const MIN_SESSION_LIMIT_MINUTES = 1

@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS: FocusGuardSettings = {
   blockedSites: [...DEFAULT_BLOCKED_SITES],
   defaultLimitMinutes: DEFAULT_SESSION_LIMIT_MINUTES,
   siteLimitMinutes: {},
-  theme: 'light',
+  theme: 'dark',
 }
 
 type StoredSettings = Partial<FocusGuardSettings>
