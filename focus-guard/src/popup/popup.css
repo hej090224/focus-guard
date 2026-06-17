@@ -180,7 +180,9 @@ h2 {
   outline: none;
 }
 
-.site-form input:focus {
+.site-form input:focus,
+.limit-field input:focus,
+.site-limit-field input:focus {
   border-color: #1f7a5a;
   box-shadow: 0 0 0 3px rgba(31, 122, 90, 0.14);
 }
@@ -215,10 +217,36 @@ h2 {
   overflow: auto;
 }
 
+.limit-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  align-items: center;
+  gap: 10px;
+}
+
+.limit-field span,
+.site-limit-field span {
+  color: #5d6b73;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.limit-field input,
+.site-limit-field input {
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #cfdadd;
+  border-radius: 6px;
+  background: #f8faf9;
+  color: #172026;
+  outline: none;
+}
+
 .session-list li,
 .site-list li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 74px auto;
   align-items: center;
   gap: 10px;
   min-height: 42px;
@@ -229,11 +257,15 @@ h2 {
 }
 
 .session-list span,
-.site-list span {
+.site-list > li > span {
   overflow-wrap: anywhere;
   color: #23313a;
   font-size: 14px;
   font-weight: 700;
+}
+
+.session-list li {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .session-list strong {
@@ -249,6 +281,20 @@ h2 {
   padding: 7px 9px;
   background: #9a443b;
   font-size: 12px;
+}
+
+.site-limit-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 4px;
+}
+
+.site-limit-field input {
+  width: 56px;
+  height: 34px;
+  padding: 0 6px;
+  font-size: 13px;
 }
 
 .site-list button:hover {
