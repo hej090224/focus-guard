@@ -1,8 +1,11 @@
+export type ThemeMode = 'light' | 'dark'
+
 export interface FocusGuardSettings {
   focusModeEnabled: boolean
   blockedSites: string[]
   defaultLimitMinutes: number
   siteLimitMinutes: Record<string, number>
+  theme: ThemeMode
 }
 
 export interface TabUsageSession {

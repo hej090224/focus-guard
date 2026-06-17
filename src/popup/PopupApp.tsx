@@ -5,7 +5,7 @@ import {
   MAX_SESSION_LIMIT_MINUTES,
   MIN_SESSION_LIMIT_MINUTES,
 } from '../shared/constants'
-import type { FocusGuardSettings, TabUsageSession } from '../shared/types'
+import type { FocusGuardSettings, TabUsageSession, ThemeMode } from '../shared/types'
 import { normalizeHostname } from '../shared/url'
 import {
   addBlockedSite,
@@ -16,6 +16,7 @@ import {
   removeBlockedSite,
   setDefaultLimitMinutes,
   setFocusModeEnabled,
+  setTheme,
   setSiteLimitMinutes,
   SETTINGS_STORAGE_KEY,
 } from '../storage/settingsStorage'
@@ -140,6 +141,10 @@ export function PopupApp() {
     }
   }
 
+  async function handleThemeChange(theme: ThemeMode) {
+    setSettings(await setTheme(theme))
+  }
+
   async function handleDefaultLimitChange(value: string) {
     const limitMinutes = parseLimitMinutes(value)
 
@@ -202,7 +207,7 @@ export function PopupApp() {
   }
 
   return (
-    <main className="popup-shell">
+    <main className="popup-shell" data-theme={settings.theme}>
       <header className="popup-header card">
         <div>
           <p className="eyebrow">FocusGuard</p>
@@ -230,6 +235,39 @@ export function PopupApp() {
           </strong>
         </div>
         <small>{blockedSiteCountText}</small>
+      </section>
+
+      <section className="card section-card">
+        <div className="section-title">
+          <div>
+            <h2>테마</h2>
+            <p>popup과 차단 화면에 적용할 화면 모드</p>
+          </div>
+          <span>{settings.theme === 'dark' ? 'Dark' : 'Light'}</span>
+        </div>
+
+        <div className="theme-control" role="group" aria-label="테마 설정">
+          <button
+            type="button"
+            className={settings.theme === 'light' ? 'theme-option theme-option-active' : 'theme-option'}
+            aria-pressed={settings.theme === 'light'}
+            onClick={() => {
+              void handleThemeChange('light')
+            }}
+          >
+            Light
+          </button>
+          <button
+            type="button"
+            className={settings.theme === 'dark' ? 'theme-option theme-option-active' : 'theme-option'}
+            aria-pressed={settings.theme === 'dark'}
+            onClick={() => {
+              void handleThemeChange('dark')
+            }}
+          >
+            Dark
+          </button>
+        </div>
       </section>
 
       <section className="card section-card">
