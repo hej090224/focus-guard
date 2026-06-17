@@ -2,7 +2,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { MOTIVATION_MESSAGES } from '../shared/constants'
 import { getQueryParam } from '../shared/queryString'
 
-const BLOCKED_REASON = '집중 모드에서 10분 사용 시간을 초과했습니다.'
+function getBlockedReason(limitMinutes: string | null): string {
+  const parsedLimit = Number(limitMinutes)
+
+  if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
+    return '집중 모드 사용 시간을 초과했습니다.'
+  }
+
+  return `집중 모드에서 ${parsedLimit}분 사용 시간을 초과했습니다.`
+}
 
 function getRandomMessage(): string {
   const index = Math.floor(Math.random() * MOTIVATION_MESSAGES.length)
@@ -19,6 +27,7 @@ function formatCurrentTime(date: Date): string {
 export function BlockedApp() {
   const [currentTime, setCurrentTime] = useState(() => formatCurrentTime(new Date()))
   const site = getQueryParam(window.location.search, 'site') ?? '차단 사이트'
+  const blockedReason = getBlockedReason(getQueryParam(window.location.search, 'limit'))
   const message = useMemo(() => getRandomMessage(), [])
 
   useEffect(() => {
@@ -39,7 +48,7 @@ export function BlockedApp() {
         <dl className="blocked-details">
           <div>
             <dt>차단 이유</dt>
-            <dd>{BLOCKED_REASON}</dd>
+            <dd>{blockedReason}</dd>
           </div>
           <div>
             <dt>현재 시간</dt>

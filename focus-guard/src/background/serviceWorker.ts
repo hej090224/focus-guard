@@ -1,6 +1,6 @@
-﻿import { SESSION_LIMIT_MS, SESSION_WARNING_THRESHOLD_MS } from '../shared/constants'
+﻿import { getSessionLimitMs, SESSION_WARNING_THRESHOLD_MS } from '../shared/constants'
 import type { TabUsageSession } from '../shared/types'
-import { getHostnameFromUrl, isBlockedHostname, shouldIgnoreUrl } from '../shared/url'
+import { getHostnameFromUrl, getMatchingBlockedSite, shouldIgnoreUrl } from '../shared/url'
 import { getSettings, SETTINGS_STORAGE_KEY } from '../storage/settingsStorage'
 import {
   clearTabUsageSessions,
@@ -121,14 +121,15 @@ function isBlockedPageUrl(url: string | undefined): boolean {
   }
 }
 
-function createSession(tabId: number, hostname: string): TabUsageSession {
+function createSession(tabId: number, hostname: string, limitMinutes: number): TabUsageSession {
   const startedAt = Date.now()
 
   return {
     tabId,
     hostname,
     startedAt,
-    expiresAt: startedAt + SESSION_LIMIT_MS,
+    expiresAt: startedAt + getSessionLimitMs(limitMinutes),
+    limitMinutes,
     isLimitExceeded: false,
   }
 }
@@ -167,6 +168,7 @@ async function redirectToBlockedPage(session: TabUsageSession): Promise<void> {
 
   const params = new URLSearchParams({
     site: session.hostname,
+    limit: String(session.limitMinutes),
   })
 
   await removeTabUsageSession(session.tabId)
@@ -265,21 +267,24 @@ async function handleTabUrl(tabId: number, url: string | undefined): Promise<voi
     return
   }
 
-  if (settings.blockedSites.length === 0 || !isBlockedHostname(hostname, settings.blockedSites)) {
+  const blockedSite = getMatchingBlockedSite(hostname, settings.blockedSites)
+
+  if (settings.blockedSites.length === 0 || blockedSite === null) {
     clearSessionAlarms(tabId)
     await removeTabUsageSession(tabId)
     return
   }
 
+  const limitMinutes = settings.siteLimitMinutes[blockedSite] ?? settings.defaultLimitMinutes
   const previousSession = await readTabUsageSession(tabId)
   const session =
-    previousSession?.hostname === hostname
+    previousSession?.hostname === hostname && previousSession.limitMinutes === limitMinutes
       ? previousSession
-      : createSession(tabId, hostname)
+      : createSession(tabId, hostname, limitMinutes)
 
   const elapsedMs = Date.now() - session.startedAt
 
-  if (elapsedMs >= SESSION_LIMIT_MS) {
+  if (elapsedMs >= getSessionLimitMs(session.limitMinutes)) {
     const exceededSession = markLimitExceeded(session)
 
     await writeTabUsageSession(exceededSession)

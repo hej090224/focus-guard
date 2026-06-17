@@ -1,13 +1,22 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import {
+  DEFAULT_SESSION_LIMIT_MINUTES,
+  MAX_SESSION_LIMIT_MINUTES,
+  MIN_SESSION_LIMIT_MINUTES,
+} from '../shared/constants'
 import type { FocusGuardSettings, TabUsageSession } from '../shared/types'
 import { normalizeHostname } from '../shared/url'
 import {
   addBlockedSite,
+  clearSiteLimitMinutes,
   DEFAULT_SETTINGS,
   getSettings,
+  isValidLimitMinutes,
   removeBlockedSite,
+  setDefaultLimitMinutes,
   setFocusModeEnabled,
+  setSiteLimitMinutes,
   SETTINGS_STORAGE_KEY,
 } from '../storage/settingsStorage'
 import { readAllTabUsageSessions } from '../storage/sessionStorage'
@@ -24,6 +33,12 @@ function getVisibleSessions(sessions: TabUsageSession[], now: number): TabUsageS
   return sessions
     .filter((session) => !session.isLimitExceeded && session.expiresAt > now)
     .sort((first, second) => first.hostname.localeCompare(second.hostname) || first.tabId - second.tabId)
+}
+
+function parseLimitMinutes(value: string): number | null {
+  const parsedValue = Number(value)
+
+  return isValidLimitMinutes(parsedValue) ? parsedValue : null
 }
 
 export function PopupApp() {
@@ -125,6 +140,42 @@ export function PopupApp() {
     }
   }
 
+  async function handleDefaultLimitChange(value: string) {
+    const limitMinutes = parseLimitMinutes(value)
+
+    if (limitMinutes === null) {
+      setFormMessage(`기본 제한 시간은 ${MIN_SESSION_LIMIT_MINUTES}~${MAX_SESSION_LIMIT_MINUTES}분만 저장할 수 있습니다.`)
+      return
+    }
+
+    const nextSettings = await setDefaultLimitMinutes(limitMinutes)
+
+    setSettings(nextSettings)
+    setFormMessage(`기본 제한 시간을 ${limitMinutes}분으로 저장했습니다.`)
+  }
+
+  async function handleSiteLimitChange(site: string, value: string) {
+    if (value.trim().length === 0) {
+      const nextSettings = await clearSiteLimitMinutes(site)
+
+      setSettings(nextSettings)
+      setFormMessage(`${site}은 기본 제한 시간을 사용합니다.`)
+      return
+    }
+
+    const limitMinutes = parseLimitMinutes(value)
+
+    if (limitMinutes === null) {
+      setFormMessage(`사이트별 제한 시간은 ${MIN_SESSION_LIMIT_MINUTES}~${MAX_SESSION_LIMIT_MINUTES}분만 저장할 수 있습니다.`)
+      return
+    }
+
+    const nextSettings = await setSiteLimitMinutes(site, limitMinutes)
+
+    setSettings(nextSettings)
+    setFormMessage(`${site} 제한 시간을 ${limitMinutes}분으로 저장했습니다.`)
+  }
+
   async function handleAddSite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -156,7 +207,7 @@ export function PopupApp() {
         <div>
           <p className="eyebrow">FocusGuard</p>
           <h1>집중 모드</h1>
-          <p className="header-copy">차단 사이트별 10분 사용을 관리합니다.</p>
+          <p className="header-copy">차단 사이트별 사용 시간을 관리합니다.</p>
         </div>
         <label className="switch">
           <input
@@ -179,6 +230,32 @@ export function PopupApp() {
           </strong>
         </div>
         <small>{blockedSiteCountText}</small>
+      </section>
+
+      <section className="card section-card">
+        <div className="section-title">
+          <div>
+            <h2>사용 시간 제한</h2>
+            <p>기본 제한 시간과 사이트별 예외를 설정합니다.</p>
+          </div>
+          <span>{settings.defaultLimitMinutes}분 기본</span>
+        </div>
+
+        <label className="limit-field">
+          <span>전체 기본 제한</span>
+          <input
+            key={`default-limit:${settings.defaultLimitMinutes}`}
+            type="number"
+            min={MIN_SESSION_LIMIT_MINUTES}
+            max={MAX_SESSION_LIMIT_MINUTES}
+            step="1"
+            defaultValue={settings.defaultLimitMinutes || DEFAULT_SESSION_LIMIT_MINUTES}
+            aria-label="전체 기본 제한 시간"
+            onBlur={(event) => {
+              void handleDefaultLimitChange(event.currentTarget.value)
+            }}
+          />
+        </label>
       </section>
 
       <section className="card section-card">
@@ -210,9 +287,9 @@ export function PopupApp() {
         <div className="section-title">
           <div>
             <h2>차단 사이트</h2>
-            <p>사용 제한을 적용할 도메인</p>
+            <p>사이트별 제한 시간이 없으면 기본 제한을 사용합니다.</p>
           </div>
-          <span>10분 허용</span>
+          <span>{settings.defaultLimitMinutes}분 기본</span>
         </div>
 
         <form className="site-form" onSubmit={handleAddSite}>
@@ -237,20 +314,40 @@ export function PopupApp() {
         </p>
 
         <ul className="site-list">
-          {settings.blockedSites.map((site) => (
-            <li key={site}>
-              <span>{site}</span>
-              <button
-                type="button"
-                aria-label={`${site} 삭제`}
-                onClick={() => {
-                  void handleRemoveSite(site)
-                }}
-              >
-                삭제
-              </button>
-            </li>
-          ))}
+          {settings.blockedSites.map((site) => {
+            const siteLimitMinutes = settings.siteLimitMinutes[site]
+
+            return (
+              <li key={site}>
+                <span>{site}</span>
+                <label className="site-limit-field">
+                  <span>분</span>
+                  <input
+                    key={`${site}:${siteLimitMinutes ?? 'default'}`}
+                    type="number"
+                    min={MIN_SESSION_LIMIT_MINUTES}
+                    max={MAX_SESSION_LIMIT_MINUTES}
+                    step="1"
+                    defaultValue={siteLimitMinutes ?? ''}
+                    placeholder={String(settings.defaultLimitMinutes)}
+                    aria-label={`${site} 제한 시간`}
+                    onBlur={(event) => {
+                      void handleSiteLimitChange(site, event.currentTarget.value)
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  aria-label={`${site} 삭제`}
+                  onClick={() => {
+                    void handleRemoveSite(site)
+                  }}
+                >
+                  삭제
+                </button>
+              </li>
+            )
+          })}
         </ul>
       </section>
     </main>

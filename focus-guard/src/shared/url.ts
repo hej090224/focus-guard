@@ -44,7 +44,11 @@ export function getHostnameFromUrl(url: string | undefined): string | null {
 }
 
 export function isBlockedHostname(hostname: string, blockedSites: string[]): boolean {
-  return blockedSites.some((site) => hostname === site || hostname.endsWith(`.${site}`))
+  return getMatchingBlockedSite(hostname, blockedSites) !== null
+}
+
+export function getMatchingBlockedSite(hostname: string, blockedSites: string[]): string | null {
+  return blockedSites.find((site) => hostname === site || hostname.endsWith(`.${site}`)) ?? null
 }
 
 export function isLocalhost(hostname: string): boolean {

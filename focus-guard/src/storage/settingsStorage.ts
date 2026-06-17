@@ -1,4 +1,9 @@
-import { DEFAULT_BLOCKED_SITES } from '../shared/constants'
+import {
+  DEFAULT_BLOCKED_SITES,
+  DEFAULT_SESSION_LIMIT_MINUTES,
+  MAX_SESSION_LIMIT_MINUTES,
+  MIN_SESSION_LIMIT_MINUTES,
+} from '../shared/constants'
 import type { FocusGuardSettings } from '../shared/types'
 import { normalizeHostname } from '../shared/url'
 
@@ -7,6 +12,8 @@ export const SETTINGS_STORAGE_KEY = 'focusGuardSettings'
 export const DEFAULT_SETTINGS: FocusGuardSettings = {
   focusModeEnabled: false,
   blockedSites: [...DEFAULT_BLOCKED_SITES],
+  defaultLimitMinutes: DEFAULT_SESSION_LIMIT_MINUTES,
+  siteLimitMinutes: {},
 }
 
 type StoredSettings = Partial<FocusGuardSettings>
@@ -45,14 +52,68 @@ function normalizeSites(sites: unknown): string[] {
   return Array.from(new Set(normalizedSites))
 }
 
+export function isValidLimitMinutes(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= MIN_SESSION_LIMIT_MINUTES &&
+    value <= MAX_SESSION_LIMIT_MINUTES
+  )
+}
+
+function normalizeLimitMinutes(value: unknown, fallback: number): number {
+  return isValidLimitMinutes(value) ? value : fallback
+}
+
+function normalizeSiteLimitMinutes(value: unknown, blockedSites: string[]): Record<string, number> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return {}
+  }
+
+  return Object.entries(value).reduce<Record<string, number>>((limits, [site, limitMinutes]) => {
+    const hostname = normalizeHostname(site)
+
+    if (hostname !== null && blockedSites.includes(hostname) && isValidLimitMinutes(limitMinutes)) {
+      limits[hostname] = limitMinutes
+    }
+
+    return limits
+  }, {})
+}
+
 function normalizeStoredSettings(storedSettings: StoredSettings | undefined): FocusGuardSettings {
+  const blockedSites = normalizeSites(storedSettings?.blockedSites)
+  const defaultLimitMinutes = normalizeLimitMinutes(
+    storedSettings?.defaultLimitMinutes,
+    DEFAULT_SETTINGS.defaultLimitMinutes,
+  )
+
   return {
     focusModeEnabled:
       typeof storedSettings?.focusModeEnabled === 'boolean'
         ? storedSettings.focusModeEnabled
         : DEFAULT_SETTINGS.focusModeEnabled,
-    blockedSites: normalizeSites(storedSettings?.blockedSites),
+    blockedSites,
+    defaultLimitMinutes,
+    siteLimitMinutes: normalizeSiteLimitMinutes(storedSettings?.siteLimitMinutes, blockedSites),
   }
+}
+
+function areSiteLimitMinutesEqual(
+  storedLimits: Record<string, number> | undefined,
+  normalizedLimits: Record<string, number>,
+): boolean {
+  if (typeof storedLimits !== 'object' || storedLimits === null || Array.isArray(storedLimits)) {
+    return Object.keys(normalizedLimits).length === 0
+  }
+
+  const storedEntries = Object.entries(storedLimits)
+  const normalizedEntries = Object.entries(normalizedLimits)
+
+  return (
+    storedEntries.length === normalizedEntries.length &&
+    normalizedEntries.every(([site, limitMinutes]) => storedLimits[site] === limitMinutes)
+  )
 }
 
 function shouldRepairSettings(storedSettings: StoredSettings | undefined, settings: FocusGuardSettings): boolean {
@@ -61,7 +122,9 @@ function shouldRepairSettings(storedSettings: StoredSettings | undefined, settin
     typeof storedSettings.focusModeEnabled !== 'boolean' ||
     !Array.isArray(storedSettings.blockedSites) ||
     storedSettings.blockedSites.length !== settings.blockedSites.length ||
-    storedSettings.blockedSites.some((site, index) => site !== settings.blockedSites[index])
+    storedSettings.blockedSites.some((site, index) => site !== settings.blockedSites[index]) ||
+    storedSettings.defaultLimitMinutes !== settings.defaultLimitMinutes ||
+    !areSiteLimitMinutesEqual(storedSettings.siteLimitMinutes, settings.siteLimitMinutes)
   )
 }
 
@@ -77,9 +140,14 @@ export async function getSettings(): Promise<FocusGuardSettings> {
 }
 
 export async function saveSettings(settings: FocusGuardSettings): Promise<void> {
+  const blockedSites = normalizeSites(settings.blockedSites)
+  const defaultLimitMinutes = normalizeLimitMinutes(settings.defaultLimitMinutes, DEFAULT_SETTINGS.defaultLimitMinutes)
+
   await writeLocal<FocusGuardSettings>(SETTINGS_STORAGE_KEY, {
     focusModeEnabled: settings.focusModeEnabled,
-    blockedSites: normalizeSites(settings.blockedSites),
+    blockedSites,
+    defaultLimitMinutes,
+    siteLimitMinutes: normalizeSiteLimitMinutes(settings.siteLimitMinutes, blockedSites),
   })
 }
 
@@ -116,10 +184,71 @@ export async function removeBlockedSite(site: string): Promise<FocusGuardSetting
   }
 
   const settings = await getSettings()
+  const { [hostname]: removedLimit, ...siteLimitMinutes } = settings.siteLimitMinutes
   const nextSettings = {
     ...settings,
     blockedSites: settings.blockedSites.filter((blockedSite) => blockedSite !== hostname),
+    siteLimitMinutes,
   }
+
+  void removedLimit
+  await saveSettings(nextSettings)
+  return nextSettings
+}
+
+export async function setDefaultLimitMinutes(limitMinutes: number): Promise<FocusGuardSettings> {
+  if (!isValidLimitMinutes(limitMinutes)) {
+    return getSettings()
+  }
+
+  const settings = await getSettings()
+  const nextSettings = { ...settings, defaultLimitMinutes: limitMinutes }
+
+  await saveSettings(nextSettings)
+  return nextSettings
+}
+
+export async function setSiteLimitMinutes(site: string, limitMinutes: number): Promise<FocusGuardSettings> {
+  if (!isValidLimitMinutes(limitMinutes)) {
+    return getSettings()
+  }
+
+  const hostname = normalizeHostname(site)
+
+  if (hostname === null) {
+    return getSettings()
+  }
+
+  const settings = await getSettings()
+
+  if (!settings.blockedSites.includes(hostname)) {
+    return settings
+  }
+
+  const nextSettings = {
+    ...settings,
+    siteLimitMinutes: {
+      ...settings.siteLimitMinutes,
+      [hostname]: limitMinutes,
+    },
+  }
+
+  await saveSettings(nextSettings)
+  return nextSettings
+}
+
+export async function clearSiteLimitMinutes(site: string): Promise<FocusGuardSettings> {
+  const hostname = normalizeHostname(site)
+
+  if (hostname === null) {
+    return getSettings()
+  }
+
+  const settings = await getSettings()
+  const { [hostname]: removedLimit, ...siteLimitMinutes } = settings.siteLimitMinutes
+
+  void removedLimit
+  const nextSettings = { ...settings, siteLimitMinutes }
 
   await saveSettings(nextSettings)
   return nextSettings
