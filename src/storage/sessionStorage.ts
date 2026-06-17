@@ -29,6 +29,8 @@ function isTabUsageSession(value: unknown): value is TabUsageSession {
     isFiniteNumber(session.startedAt) &&
     isFiniteNumber(session.expiresAt) &&
     session.expiresAt > session.startedAt &&
+    isFiniteNumber(session.limitMinutes) &&
+    Number.isInteger(session.limitMinutes) &&
     typeof session.isLimitExceeded === 'boolean' &&
     isOptionalFiniteNumber(session.warningNotificationShownAt) &&
     isOptionalFiniteNumber(session.limitExceededAt)
