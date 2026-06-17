@@ -16,8 +16,8 @@ import {
   removeBlockedSite,
   setDefaultLimitMinutes,
   setFocusModeEnabled,
-  setTheme,
   setSiteLimitMinutes,
+  setTheme,
   SETTINGS_STORAGE_KEY,
 } from '../storage/settingsStorage'
 import { readAllTabUsageSessions } from '../storage/sessionStorage'
@@ -122,11 +122,7 @@ export function PopupApp() {
     }
   }, [settings.focusModeEnabled])
 
-  const blockedSiteCountText = useMemo(
-    () => `${settings.blockedSites.length}개 사이트`,
-    [settings.blockedSites.length],
-  )
-
+  const blockedSiteCountText = useMemo(() => `${settings.blockedSites.length}개 사이트`, [settings.blockedSites.length])
   const normalizedInput = normalizeHostname(siteInput)
   const isDuplicateSite = normalizedInput !== null && settings.blockedSites.includes(normalizedInput)
   const canAddSite = normalizedInput !== null && !isDuplicateSite
@@ -149,7 +145,7 @@ export function PopupApp() {
     const limitMinutes = parseLimitMinutes(value)
 
     if (limitMinutes === null) {
-      setFormMessage(`기본 제한 시간은 ${MIN_SESSION_LIMIT_MINUTES}~${MAX_SESSION_LIMIT_MINUTES}분만 저장할 수 있습니다.`)
+      setFormMessage(`제한 시간은 ${MIN_SESSION_LIMIT_MINUTES}~${MAX_SESSION_LIMIT_MINUTES}분 사이로 입력하세요.`)
       return
     }
 
@@ -171,7 +167,7 @@ export function PopupApp() {
     const limitMinutes = parseLimitMinutes(value)
 
     if (limitMinutes === null) {
-      setFormMessage(`사이트별 제한 시간은 ${MIN_SESSION_LIMIT_MINUTES}~${MAX_SESSION_LIMIT_MINUTES}분만 저장할 수 있습니다.`)
+      setFormMessage(`사이트별 제한 시간은 ${MIN_SESSION_LIMIT_MINUTES}~${MAX_SESSION_LIMIT_MINUTES}분 사이로 입력하세요.`)
       return
     }
 
@@ -212,7 +208,7 @@ export function PopupApp() {
         <div>
           <p className="eyebrow">FocusGuard</p>
           <h1>집중 모드</h1>
-          <p className="header-copy">차단 사이트별 사용 시간을 관리합니다.</p>
+          <p className="header-copy">차단 사이트와 사용 시간을 관리합니다.</p>
         </div>
         <label className="switch">
           <input
@@ -227,60 +223,54 @@ export function PopupApp() {
         </label>
       </header>
 
-      <section className="status-card card">
-        <div>
-          <span className="label">현재 상태</span>
+      <section className="summary-grid">
+        <div className="summary-item card">
+          <span className="label">상태</span>
           <strong className={settings.focusModeEnabled ? 'status-on' : 'status-off'}>
-            {settings.focusModeEnabled ? '차단 감지 중' : '대기 중'}
+            {settings.focusModeEnabled ? '감지 중' : '대기 중'}
           </strong>
         </div>
-        <small>{blockedSiteCountText}</small>
+        <div className="summary-item card">
+          <span className="label">사이트</span>
+          <strong>{blockedSiteCountText}</strong>
+        </div>
       </section>
 
-      <section className="card section-card">
-        <div className="section-title">
+      <section className="card section-card compact-section">
+        <div className="setting-row">
           <div>
             <h2>테마</h2>
-            <p>popup과 차단 화면에 적용할 화면 모드</p>
+            <p>화면 모드</p>
           </div>
-          <span>{settings.theme === 'dark' ? 'Dark' : 'Light'}</span>
+          <div className="theme-control" role="group" aria-label="테마 설정">
+            <button
+              type="button"
+              className={settings.theme === 'light' ? 'theme-option theme-option-active' : 'theme-option'}
+              aria-pressed={settings.theme === 'light'}
+              onClick={() => {
+                void handleThemeChange('light')
+              }}
+            >
+              Light
+            </button>
+            <button
+              type="button"
+              className={settings.theme === 'dark' ? 'theme-option theme-option-active' : 'theme-option'}
+              aria-pressed={settings.theme === 'dark'}
+              onClick={() => {
+                void handleThemeChange('dark')
+              }}
+            >
+              Dark
+            </button>
+          </div>
         </div>
 
-        <div className="theme-control" role="group" aria-label="테마 설정">
-          <button
-            type="button"
-            className={settings.theme === 'light' ? 'theme-option theme-option-active' : 'theme-option'}
-            aria-pressed={settings.theme === 'light'}
-            onClick={() => {
-              void handleThemeChange('light')
-            }}
-          >
-            Light
-          </button>
-          <button
-            type="button"
-            className={settings.theme === 'dark' ? 'theme-option theme-option-active' : 'theme-option'}
-            aria-pressed={settings.theme === 'dark'}
-            onClick={() => {
-              void handleThemeChange('dark')
-            }}
-          >
-            Dark
-          </button>
-        </div>
-      </section>
-
-      <section className="card section-card">
-        <div className="section-title">
+        <label className="setting-row limit-field">
           <div>
-            <h2>사용 시간 제한</h2>
-            <p>기본 제한 시간과 사이트별 예외를 설정합니다.</p>
+            <h2>기본 제한</h2>
+            <p>사이트별 설정이 없을 때 적용</p>
           </div>
-          <span>{settings.defaultLimitMinutes}분 기본</span>
-        </div>
-
-        <label className="limit-field">
-          <span>전체 기본 제한</span>
           <input
             key={`default-limit:${settings.defaultLimitMinutes}`}
             type="number"
@@ -296,11 +286,11 @@ export function PopupApp() {
         </label>
       </section>
 
-      <section className="card section-card">
+      <section className="card section-card sessions-card">
         <div className="section-title">
           <div>
             <h2>남은 시간</h2>
-            <p>현재 세션이 진행 중인 차단 사이트</p>
+            <p>현재 진행 중인 차단 세션</p>
           </div>
           <span>{activeSessions.length}개</span>
         </div>
@@ -321,11 +311,11 @@ export function PopupApp() {
         )}
       </section>
 
-      <section className="card section-card">
+      <section className="card section-card site-card">
         <div className="section-title">
           <div>
             <h2>차단 사이트</h2>
-            <p>사이트별 제한 시간이 없으면 기본 제한을 사용합니다.</p>
+            <p>개별 제한 시간은 비워두면 기본값을 사용합니다.</p>
           </div>
           <span>{settings.defaultLimitMinutes}분 기본</span>
         </div>
@@ -359,7 +349,6 @@ export function PopupApp() {
               <li key={site}>
                 <span>{site}</span>
                 <label className="site-limit-field">
-                  <span>분</span>
                   <input
                     key={`${site}:${siteLimitMinutes ?? 'default'}`}
                     type="number"
@@ -373,6 +362,7 @@ export function PopupApp() {
                       void handleSiteLimitChange(site, event.currentTarget.value)
                     }}
                   />
+                  <span>분</span>
                 </label>
                 <button
                   type="button"
