@@ -4,7 +4,7 @@ import {
   MAX_SESSION_LIMIT_MINUTES,
   MIN_SESSION_LIMIT_MINUTES,
 } from '../shared/constants'
-import type { FocusGuardSettings } from '../shared/types'
+import type { FocusGuardSettings, ThemeMode } from '../shared/types'
 import { normalizeHostname } from '../shared/url'
 
 export const SETTINGS_STORAGE_KEY = 'focusGuardSettings'
@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS: FocusGuardSettings = {
   blockedSites: [...DEFAULT_BLOCKED_SITES],
   defaultLimitMinutes: DEFAULT_SESSION_LIMIT_MINUTES,
   siteLimitMinutes: {},
+  theme: 'light',
 }
 
 type StoredSettings = Partial<FocusGuardSettings>
@@ -81,6 +82,10 @@ function normalizeSiteLimitMinutes(value: unknown, blockedSites: string[]): Reco
   }, {})
 }
 
+function normalizeTheme(value: unknown): ThemeMode {
+  return value === 'dark' || value === 'light' ? value : DEFAULT_SETTINGS.theme
+}
+
 function normalizeStoredSettings(storedSettings: StoredSettings | undefined): FocusGuardSettings {
   const blockedSites = normalizeSites(storedSettings?.blockedSites)
   const defaultLimitMinutes = normalizeLimitMinutes(
@@ -96,6 +101,7 @@ function normalizeStoredSettings(storedSettings: StoredSettings | undefined): Fo
     blockedSites,
     defaultLimitMinutes,
     siteLimitMinutes: normalizeSiteLimitMinutes(storedSettings?.siteLimitMinutes, blockedSites),
+    theme: normalizeTheme(storedSettings?.theme),
   }
 }
 
@@ -124,7 +130,8 @@ function shouldRepairSettings(storedSettings: StoredSettings | undefined, settin
     storedSettings.blockedSites.length !== settings.blockedSites.length ||
     storedSettings.blockedSites.some((site, index) => site !== settings.blockedSites[index]) ||
     storedSettings.defaultLimitMinutes !== settings.defaultLimitMinutes ||
-    !areSiteLimitMinutesEqual(storedSettings.siteLimitMinutes, settings.siteLimitMinutes)
+    !areSiteLimitMinutesEqual(storedSettings.siteLimitMinutes, settings.siteLimitMinutes) ||
+    storedSettings.theme !== settings.theme
   )
 }
 
@@ -148,6 +155,7 @@ export async function saveSettings(settings: FocusGuardSettings): Promise<void> 
     blockedSites,
     defaultLimitMinutes,
     siteLimitMinutes: normalizeSiteLimitMinutes(settings.siteLimitMinutes, blockedSites),
+    theme: normalizeTheme(settings.theme),
   })
 }
 
@@ -249,6 +257,14 @@ export async function clearSiteLimitMinutes(site: string): Promise<FocusGuardSet
 
   void removedLimit
   const nextSettings = { ...settings, siteLimitMinutes }
+
+  await saveSettings(nextSettings)
+  return nextSettings
+}
+
+export async function setTheme(theme: ThemeMode): Promise<FocusGuardSettings> {
+  const settings = await getSettings()
+  const nextSettings = { ...settings, theme: normalizeTheme(theme) }
 
   await saveSettings(nextSettings)
   return nextSettings

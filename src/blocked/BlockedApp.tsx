@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MOTIVATION_MESSAGES } from '../shared/constants'
 import { getQueryParam } from '../shared/queryString'
+import type { ThemeMode } from '../shared/types'
+import { DEFAULT_SETTINGS, getSettings, SETTINGS_STORAGE_KEY } from '../storage/settingsStorage'
 
 function getBlockedReason(limitMinutes: string | null): string {
   const parsedLimit = Number(limitMinutes)
@@ -26,9 +28,38 @@ function formatCurrentTime(date: Date): string {
 
 export function BlockedApp() {
   const [currentTime, setCurrentTime] = useState(() => formatCurrentTime(new Date()))
+  const [theme, setTheme] = useState<ThemeMode>(DEFAULT_SETTINGS.theme)
   const site = getQueryParam(window.location.search, 'site') ?? '차단 사이트'
   const blockedReason = getBlockedReason(getQueryParam(window.location.search, 'limit'))
   const message = useMemo(() => getRandomMessage(), [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    void getSettings().then((settings) => {
+      if (isMounted) {
+        setTheme(settings.theme)
+      }
+    })
+
+    function handleStorageChange(
+      changes: Record<string, ChromeStorageChange>,
+      areaName: 'local' | 'sync' | 'session' | 'managed',
+    ) {
+      if (areaName !== 'local' || !changes[SETTINGS_STORAGE_KEY]) {
+        return
+      }
+
+      void getSettings().then((settings) => setTheme(settings.theme))
+    }
+
+    chrome.storage.onChanged.addListener(handleStorageChange)
+
+    return () => {
+      isMounted = false
+      chrome.storage.onChanged.removeListener(handleStorageChange)
+    }
+  }, [])
 
   useEffect(() => {
     const timerId = window.setInterval(() => {
@@ -39,7 +70,7 @@ export function BlockedApp() {
   }, [])
 
   return (
-    <main className="blocked-shell">
+    <main className="blocked-shell" data-theme={theme}>
       <section className="blocked-panel">
         <p className="eyebrow">FocusGuard</p>
         <h1>접속이 차단되었습니다</h1>
