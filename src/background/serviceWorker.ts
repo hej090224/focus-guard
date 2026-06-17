@@ -1,5 +1,5 @@
 ﻿import { getSessionLimitMs, SESSION_WARNING_THRESHOLD_MS } from '../shared/constants'
-import type { TabUsageSession } from '../shared/types'
+import type { FocusGuardSettings, TabUsageSession } from '../shared/types'
 import { getHostnameFromUrl, getMatchingBlockedSite, shouldIgnoreUrl } from '../shared/url'
 import { getSettings, SETTINGS_STORAGE_KEY } from '../storage/settingsStorage'
 import {
@@ -134,6 +134,24 @@ function createSession(tabId: number, hostname: string, limitMinutes: number): T
   }
 }
 
+function applySessionLimit(session: TabUsageSession, limitMinutes: number): TabUsageSession {
+  if (session.limitMinutes === limitMinutes) {
+    return session
+  }
+
+  const { warningNotificationShownAt, limitExceededAt, ...activeSession } = session
+
+  void warningNotificationShownAt
+  void limitExceededAt
+
+  return {
+    ...activeSession,
+    expiresAt: session.startedAt + getSessionLimitMs(limitMinutes),
+    limitMinutes,
+    isLimitExceeded: false,
+  }
+}
+
 function markWarningNotificationShown(session: TabUsageSession): TabUsageSession {
   if (session.warningNotificationShownAt) {
     return session
@@ -235,13 +253,51 @@ async function refreshOpenTabs(): Promise<void> {
 async function handleSettingsChange(): Promise<void> {
   const settings = await getSettings()
 
-  await clearAllSessions()
-
   if (!settings.focusModeEnabled || settings.blockedSites.length === 0) {
+    await clearAllSessions()
     return
   }
 
   await refreshOpenTabs()
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function areStringArraysEqual(first: unknown, second: string[]): boolean {
+  return (
+    Array.isArray(first) &&
+    first.length === second.length &&
+    first.every((value, index) => value === second[index])
+  )
+}
+
+function areNumberRecordsEqual(first: unknown, second: Record<string, number>): boolean {
+  if (!isObjectRecord(first)) {
+    return Object.keys(second).length === 0
+  }
+
+  const firstEntries = Object.entries(first)
+  const secondEntries = Object.entries(second)
+
+  return (
+    firstEntries.length === secondEntries.length &&
+    secondEntries.every(([key, value]) => first[key] === value)
+  )
+}
+
+function didBlockingSettingsChange(oldValue: unknown, nextSettings: FocusGuardSettings): boolean {
+  if (!isObjectRecord(oldValue)) {
+    return true
+  }
+
+  return (
+    oldValue.focusModeEnabled !== nextSettings.focusModeEnabled ||
+    !areStringArraysEqual(oldValue.blockedSites, nextSettings.blockedSites) ||
+    oldValue.defaultLimitMinutes !== nextSettings.defaultLimitMinutes ||
+    !areNumberRecordsEqual(oldValue.siteLimitMinutes, nextSettings.siteLimitMinutes)
+  )
 }
 
 async function handleTabUrl(tabId: number, url: string | undefined): Promise<void> {
@@ -278,8 +334,8 @@ async function handleTabUrl(tabId: number, url: string | undefined): Promise<voi
   const limitMinutes = settings.siteLimitMinutes[blockedSite] ?? settings.defaultLimitMinutes
   const previousSession = await readTabUsageSession(tabId)
   const session =
-    previousSession?.hostname === hostname && previousSession.limitMinutes === limitMinutes
-      ? previousSession
+    previousSession?.hostname === hostname
+      ? applySessionLimit(previousSession, limitMinutes)
       : createSession(tabId, hostname, limitMinutes)
 
   const elapsedMs = Date.now() - session.startedAt
@@ -305,11 +361,17 @@ chrome.runtime.onStartup.addListener(() => {
 })
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== 'local' || !changes[SETTINGS_STORAGE_KEY]) {
+  const settingsChange = changes[SETTINGS_STORAGE_KEY]
+
+  if (areaName !== 'local' || !settingsChange) {
     return
   }
 
-  void handleSettingsChange()
+  void getSettings().then((settings) => {
+    if (didBlockingSettingsChange(settingsChange.oldValue, settings)) {
+      void handleSettingsChange()
+    }
+  })
 })
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
