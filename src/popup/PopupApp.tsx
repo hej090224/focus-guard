@@ -23,6 +23,8 @@ import {
 } from '../storage/settingsStorage'
 import { readAllTabUsageSessions } from '../storage/sessionStorage'
 
+type PopupView = 'main' | 'settings'
+
 function formatRemainingTime(expiresAt: number, now: number): string {
   const totalSeconds = Math.max(0, Math.ceil((expiresAt - now) / 1000))
   const minutes = Math.floor(totalSeconds / 60)
@@ -50,6 +52,7 @@ export function PopupApp() {
   const [formMessage, setFormMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [now, setNow] = useState(0)
+  const [view, setView] = useState<PopupView>('main')
 
   useEffect(() => {
     let isMounted = true
@@ -209,184 +212,224 @@ export function PopupApp() {
   }
 
   return (
-    <main className="popup-shell" data-theme={settings.theme}>
-      <header className="popup-header card">
-        <div className="brand-heading">
-          <BrandMark className="brand-mark" labelId="popup-brand-title" />
-          <div>
-            <p className="eyebrow">FocusGuard</p>
-            <h1>집중 모드</h1>
-            <p className="header-copy">차단 사이트와 사용 시간을 관리합니다.</p>
-          </div>
-        </div>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={settings.focusModeEnabled}
-            disabled={isLoading}
-            onChange={(event) => {
-              void handleFocusModeChange(event.currentTarget.checked)
-            }}
-          />
-          <span>{settings.focusModeEnabled ? 'ON' : 'OFF'}</span>
-        </label>
-      </header>
-
-      <section className="summary-grid">
-        <div className="summary-item card">
-          <span className="label">상태</span>
-          <strong className={settings.focusModeEnabled ? 'status-on' : 'status-off'}>
-            {settings.focusModeEnabled ? '감지 중' : '대기 중'}
-          </strong>
-        </div>
-        <div className="summary-item card">
-          <span className="label">사이트</span>
-          <strong>{blockedSiteCountText}</strong>
-        </div>
-      </section>
-
-      <section className="card section-card compact-section">
-        <div className="setting-row">
-          <div>
-            <h2>테마</h2>
-            <p>화면 모드</p>
-          </div>
-          <div className="theme-control" role="group" aria-label="테마 설정">
+    <main className="popup-shell" data-theme={settings.theme} data-view={view}>
+      {view === 'main' ? (
+        <>
+          <header className="popup-header card">
+            <div className="brand-heading">
+              <BrandMark className="brand-mark" labelId="popup-brand-title" />
+              <div>
+                <p className="eyebrow">FocusGuard</p>
+                <h1>집중 모드</h1>
+              </div>
+            </div>
             <button
               type="button"
-              className={settings.theme === 'light' ? 'theme-option theme-option-active' : 'theme-option'}
-              aria-pressed={settings.theme === 'light'}
+              className="icon-button"
               onClick={() => {
-                void handleThemeChange('light')
+                setFormMessage('')
+                setView('settings')
               }}
             >
-              Light
+              설정
             </button>
+          </header>
+
+          <section className="focus-card card">
+            <div>
+              <span className="label">집중 모드</span>
+              <strong className={settings.focusModeEnabled ? 'status-on' : 'status-off'}>
+                {settings.focusModeEnabled ? '감지 중' : '대기 중'}
+              </strong>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={settings.focusModeEnabled}
+                disabled={isLoading}
+                onChange={(event) => {
+                  void handleFocusModeChange(event.currentTarget.checked)
+                }}
+              />
+              <span>{settings.focusModeEnabled ? 'ON' : 'OFF'}</span>
+            </label>
+          </section>
+
+          <section className="summary-grid">
+            <div className="summary-item card">
+              <span className="label">차단 사이트</span>
+              <strong>{blockedSiteCountText}</strong>
+            </div>
+            <div className="summary-item card">
+              <span className="label">기본 제한</span>
+              <strong>{settings.defaultLimitMinutes}분</strong>
+            </div>
+          </section>
+
+          <section className="card section-card sessions-card main-sessions">
+            <div className="section-title">
+              <div>
+                <h2>진행 중인 세션</h2>
+                <p>현재 차단 사이트의 남은 시간</p>
+              </div>
+              <span>{activeSessions.length}개</span>
+            </div>
+
+            {settings.focusModeEnabled && activeSessions.length > 0 ? (
+              <ul className="session-list">
+                {activeSessions.map((session) => (
+                  <li key={`${session.tabId}:${session.startedAt}`}>
+                    <span>{session.hostname}</span>
+                    <strong>{formatRemainingTime(session.expiresAt, now)}</strong>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="empty-state">
+                {settings.focusModeEnabled ? '진행 중인 세션이 없습니다.' : '집중 모드를 켜면 남은 시간이 표시됩니다.'}
+              </p>
+            )}
+          </section>
+        </>
+      ) : (
+        <>
+          <header className="settings-header card">
             <button
               type="button"
-              className={settings.theme === 'dark' ? 'theme-option theme-option-active' : 'theme-option'}
-              aria-pressed={settings.theme === 'dark'}
+              className="icon-button"
               onClick={() => {
-                void handleThemeChange('dark')
+                setView('main')
               }}
             >
-              Dark
+              뒤로
             </button>
-          </div>
-        </div>
+            <div>
+              <p className="eyebrow">Settings</p>
+              <h1>설정</h1>
+            </div>
+          </header>
 
-        <label className="setting-row limit-field">
-          <div>
-            <h2>기본 제한</h2>
-            <p>사이트별 설정이 없을 때 적용</p>
-          </div>
-          <input
-            key={`default-limit:${settings.defaultLimitMinutes}`}
-            type="number"
-            min={MIN_SESSION_LIMIT_MINUTES}
-            max={MAX_SESSION_LIMIT_MINUTES}
-            step="1"
-            defaultValue={settings.defaultLimitMinutes || DEFAULT_SESSION_LIMIT_MINUTES}
-            aria-label="전체 기본 제한 시간"
-            onBlur={(event) => {
-              void handleDefaultLimitBlur(event.currentTarget)
-            }}
-          />
-        </label>
-      </section>
-
-      <section className="card section-card sessions-card">
-        <div className="section-title">
-          <div>
-            <h2>남은 시간</h2>
-            <p>현재 진행 중인 차단 세션</p>
-          </div>
-          <span>{activeSessions.length}개</span>
-        </div>
-
-        {settings.focusModeEnabled && activeSessions.length > 0 ? (
-          <ul className="session-list">
-            {activeSessions.map((session) => (
-              <li key={`${session.tabId}:${session.startedAt}`}>
-                <span>{session.hostname}</span>
-                <strong>{formatRemainingTime(session.expiresAt, now)}</strong>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="empty-state">
-            {settings.focusModeEnabled ? '진행 중인 세션이 없습니다.' : '집중 모드를 켜면 남은 시간이 표시됩니다.'}
-          </p>
-        )}
-      </section>
-
-      <section className="card section-card site-card">
-        <div className="section-title">
-          <div>
-            <h2>차단 사이트</h2>
-            <p>개별 제한 시간은 비워두면 기본값을 사용합니다.</p>
-          </div>
-          <span>{settings.defaultLimitMinutes}분 기본</span>
-        </div>
-
-        <form className="site-form" onSubmit={handleAddSite}>
-          <input
-            type="text"
-            value={siteInput}
-            placeholder="example.com"
-            aria-label="차단 사이트 추가"
-            aria-describedby="site-form-message"
-            onChange={(event) => {
-              setSiteInput(event.currentTarget.value)
-              setFormMessage('')
-            }}
-          />
-          <button type="submit" disabled={!canAddSite}>
-            추가
-          </button>
-        </form>
-
-        <p id="site-form-message" className={formMessage ? 'form-message' : 'form-message form-message-empty'}>
-          {formMessage || ' '}
-        </p>
-
-        <ul className="site-list">
-          {settings.blockedSites.map((site) => {
-            const siteLimitMinutes = settings.siteLimitMinutes[site]
-
-            return (
-              <li key={site}>
-                <span>{site}</span>
-                <label className="site-limit-field">
-                  <input
-                    key={`${site}:${siteLimitMinutes ?? 'default'}`}
-                    type="number"
-                    min={MIN_SESSION_LIMIT_MINUTES}
-                    max={MAX_SESSION_LIMIT_MINUTES}
-                    step="1"
-                    defaultValue={siteLimitMinutes ?? ''}
-                    placeholder={String(settings.defaultLimitMinutes)}
-                    aria-label={`${site} 제한 시간`}
-                    onBlur={(event) => {
-                      void handleSiteLimitBlur(site, event.currentTarget)
+          <section className="settings-content">
+            <section className="card section-card compact-section">
+              <div className="setting-row">
+                <div>
+                  <h2>테마</h2>
+                  <p>popup과 차단 화면에 적용됩니다.</p>
+                </div>
+                <div className="theme-control" role="group" aria-label="테마 설정">
+                  <button
+                    type="button"
+                    className={settings.theme === 'light' ? 'theme-option theme-option-active' : 'theme-option'}
+                    aria-pressed={settings.theme === 'light'}
+                    onClick={() => {
+                      void handleThemeChange('light')
                     }}
-                  />
-                  <span>분</span>
-                </label>
-                <button
-                  type="button"
-                  aria-label={`${site} 삭제`}
-                  onClick={() => {
-                    void handleRemoveSite(site)
+                  >
+                    Light
+                  </button>
+                  <button
+                    type="button"
+                    className={settings.theme === 'dark' ? 'theme-option theme-option-active' : 'theme-option'}
+                    aria-pressed={settings.theme === 'dark'}
+                    onClick={() => {
+                      void handleThemeChange('dark')
+                    }}
+                  >
+                    Dark
+                  </button>
+                </div>
+              </div>
+
+              <label className="setting-row limit-field">
+                <div>
+                  <h2>기본 제한</h2>
+                  <p>사이트별 설정이 없을 때 적용됩니다.</p>
+                </div>
+                <input
+                  key={`default-limit:${settings.defaultLimitMinutes}`}
+                  type="number"
+                  min={MIN_SESSION_LIMIT_MINUTES}
+                  max={MAX_SESSION_LIMIT_MINUTES}
+                  step="1"
+                  defaultValue={settings.defaultLimitMinutes || DEFAULT_SESSION_LIMIT_MINUTES}
+                  aria-label="전체 기본 제한 시간"
+                  onBlur={(event) => {
+                    void handleDefaultLimitBlur(event.currentTarget)
                   }}
-                >
-                  삭제
+                />
+              </label>
+            </section>
+
+            <section className="card section-card site-card">
+              <div className="section-title">
+                <div>
+                  <h2>차단 사이트</h2>
+                  <p>개별 제한 시간은 비워두면 기본값을 사용합니다.</p>
+                </div>
+                <span>{settings.defaultLimitMinutes}분 기본</span>
+              </div>
+
+              <form className="site-form" onSubmit={handleAddSite}>
+                <input
+                  type="text"
+                  value={siteInput}
+                  placeholder="example.com"
+                  aria-label="차단 사이트 추가"
+                  aria-describedby="site-form-message"
+                  onChange={(event) => {
+                    setSiteInput(event.currentTarget.value)
+                    setFormMessage('')
+                  }}
+                />
+                <button type="submit" disabled={!canAddSite}>
+                  추가
                 </button>
-              </li>
-            )
-          })}
-        </ul>
-      </section>
+              </form>
+
+              <p id="site-form-message" className={formMessage ? 'form-message' : 'form-message form-message-empty'}>
+                {formMessage || ' '}
+              </p>
+
+              <ul className="site-list">
+                {settings.blockedSites.map((site) => {
+                  const siteLimitMinutes = settings.siteLimitMinutes[site]
+
+                  return (
+                    <li key={site}>
+                      <span>{site}</span>
+                      <label className="site-limit-field">
+                        <input
+                          key={`${site}:${siteLimitMinutes ?? 'default'}`}
+                          type="number"
+                          min={MIN_SESSION_LIMIT_MINUTES}
+                          max={MAX_SESSION_LIMIT_MINUTES}
+                          step="1"
+                          defaultValue={siteLimitMinutes ?? ''}
+                          placeholder={String(settings.defaultLimitMinutes)}
+                          aria-label={`${site} 제한 시간`}
+                          onBlur={(event) => {
+                            void handleSiteLimitBlur(site, event.currentTarget)
+                          }}
+                        />
+                        <span>분</span>
+                      </label>
+                      <button
+                        type="button"
+                        aria-label={`${site} 삭제`}
+                        onClick={() => {
+                          void handleRemoveSite(site)
+                        }}
+                      >
+                        삭제
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          </section>
+        </>
+      )}
     </main>
   )
 }
