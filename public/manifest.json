@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "FocusGuard",
   "description": "집중 중 불필요한 웹사이트 사용 시간을 제한합니다.",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "icons": {
     "16": "icon-16.png",
     "48": "icon-48.png",
