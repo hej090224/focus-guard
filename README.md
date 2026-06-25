@@ -9,12 +9,12 @@
 * :dart: 집중 모드 ON/OFF
 * :no_entry_sign: 차단 사이트 추가 및 삭제
 * :stopwatch: 사이트별 1~30분 사용 제한
-* :octagonal_sign: 제한 시간 초과 시 자동 차단 페이지 이동
+* ✖️ 제한 시간 초과 시 자동 차단 페이지 이동
 * :floppy_disk: 설정값 Chrome Storage 저장
 
 ---
 
-## :tools: Tech Stack
+## 🧰 Tech Stack
 
 * React
 * TypeScript
