@@ -8,7 +8,7 @@
 
 * :dart: 집중 모드 ON/OFF
 * :no_entry_sign: 차단 사이트 추가 및 삭제
-* :stopwatch: 사이트별 10분 사용 제한
+* :stopwatch: 사이트별 1~30분 사용 제한
 * :octagonal_sign: 제한 시간 초과 시 자동 차단 페이지 이동
 * :floppy_disk: 설정값 Chrome Storage 저장
 
@@ -26,10 +26,8 @@
 
 ## :rocket: Usage
 
-1. Chrome Extensions 페이지 접속
-2. 개발자 모드 활성화
-3. `dist` 폴더 로드
-4. FocusGuard 사용
+1. 링크 접속 -> https://chromewebstore.google.com/detail/bfkbebelhflgijlimkoijlccnbaeocki?utm_source=item-share-cb
+2. Chrome에 추가 후 사용
 
 ---
 
